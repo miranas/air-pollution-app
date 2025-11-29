@@ -2,11 +2,6 @@
 import pytest
 import sys
 import os
-
-
-#Add backend directory to path so we can import modules
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-
 from data.stations import get_all_stations
 from services.mock_data_generator import MockDataGenerator
 

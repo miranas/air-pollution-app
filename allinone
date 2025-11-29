@@ -1,0 +1,302 @@
+import os
+import re
+import logging
+from typing import Dict, List, Optional, Tuple
+from datetime import datetime, timezone
+from dotenv import load_dotenv
+
+load_dotenv()
+
+import requests
+from flask import Flask, jsonify, request, Response
+from flask_cors import CORS
+from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import func
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.types import JSON
+
+# Optional scheduler (installed via requirements):
+try:
+    import importlib
+    BackgroundScheduler = importlib.import_module("apscheduler.schedulers.background").BackgroundScheduler  # type: ignore
+    apscheduler_available = True
+except Exception:  # pragma: no cover - scheduler is optional
+    BackgroundScheduler = None  # type: ignore
+    apscheduler_available = False
+
+# ----------------------------------------------------------------------------
+# Configuration
+# ----------------------------------------------------------------------------
+DEFAULT_DATABASE_URL = (
+    os.environ.get("DATABASE_URL")
+    or "postgresql+psycopg2://postgres:postgres@localhost:5432/arso"
+)
+DEFAULT_ARSO_URL = (
+    os.environ.get("ARSO_URL")
+    or "https://www.arso.gov.si/xml/zrak/ones_zrak_urni_podatki_zadnji.xml"
+)
+
+# ----------------------------------------------------------------------------
+# App + DB setup
+# ----------------------------------------------------------------------------
+_db = SQLAlchemy()
+
+
+class RawFetch(_db.Model):
+    __tablename__ = "raw_fetches"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    fetched_at: Mapped[datetime] = mapped_column(
+        _db.DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    source_url: Mapped[str] = mapped_column(_db.String(512))
+    content: Mapped[str] = mapped_column(_db.Text, nullable=False)
+
+
+class FlattenedValue(_db.Model):
+    __tablename__ = "flattened_values"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    fetched_at: Mapped[datetime] = mapped_column(
+        _db.DateTime(timezone=True), index=True, nullable=False
+    )
+    key: Mapped[str] = mapped_column(_db.String(512), index=True, nullable=False)
+    value: Mapped[Optional[float]] = mapped_column(_db.Float)
+    unit: Mapped[Optional[str]] = mapped_column(_db.String(64))
+    context: Mapped[Dict] = mapped_column(JSON)
+
+    __table_args__ = (
+        _db.UniqueConstraint("fetched_at", "key", name="uq_fetched_key"),
+    )
+
+
+# ----------------------------------------------------------------------------
+# Utilities
+# ----------------------------------------------------------------------------
+_num_re = re.compile(r"^[+-]?((\d+\.?\d*)|(\.\d+))$")
+
+
+def is_number(text: str) -> bool:
+    text = text.strip().replace(",", ".")
+    return bool(_num_re.match(text))
+
+
+def to_float(text: str) -> Optional[float]:
+    try:
+        return float(text.strip().replace(",", "."))
+    except Exception:
+        return None
+
+
+def strip_ns(tag: str) -> str:
+    if "}" in tag:
+        return tag.split("}", 1)[1]
+    return tag
+
+
+def flatten_xml(xml_text: str) -> Tuple[List[Dict], Dict]:
+    """
+    Flatten the XML into key/value rows for numeric leaves.
+
+    Returns a tuple of (rows, meta) where rows is a list of dicts:
+      {key, value, unit, context}
+    and meta contains best-effort global metadata like {generated_at}.
+    """
+    import xml.etree.ElementTree as ET
+
+    rows: List[Dict] = []
+    meta: Dict = {}
+
+    try:
+        root = ET.fromstring(xml_text)
+    except ET.ParseError:
+        return rows, meta
+
+    # Try to detect a global timestamp in text nodes
+    text_blob = " ".join((root.text or "").split())
+    for e in root.iter():
+        if e is not None and e.text:
+            text_blob += " " + " ".join(e.text.split())
+    # Look for something like YYYY-MM-DD HH:MM
+    m = re.search(r"(20\d{2}-\d{2}-\d{2}\s+\d{2}:\d{2})", text_blob)
+    if m:
+        try:
+            meta["generated_at"] = datetime.strptime(m.group(1), "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
+        except Exception:
+            pass
+
+    # Keys we consider interesting to keep in context when seen in attributes
+    ctx_keys = {"postaja", "station", "ime", "name", "kraj", "naselje", "id", "sifra"}
+
+    def walk(elem, path: List[str], inherited_ctx: Dict[str, str]):
+        tag = strip_ns(elem.tag)
+        new_path = path + [tag]
+
+        # Build context from attributes
+        ctx = dict(inherited_ctx)
+        for k, v in elem.attrib.items():
+            k_low = k.lower()
+            if k_low in ctx_keys:
+                ctx[k_low] = v
+
+        # If this element has numeric text, record it
+        text = (elem.text or "").strip()
+        if text and is_number(text):
+            rows.append(
+                {
+                    "key": "/".join(new_path),
+                    "value": to_float(text),
+                    "unit": elem.attrib.get("enota") or elem.attrib.get("unit") or None,
+                    "context": ctx,
+                }
+            )
+
+        for child in list(elem):
+            walk(child, new_path, ctx)
+
+    walk(root, [], {})
+    return rows, meta
+
+
+# ----------------------------------------------------------------------------
+# Ingestion
+# ----------------------------------------------------------------------------
+
+def fetch_and_ingest(app: Flask, url: str) -> Dict:
+    """Fetch XML from ARSO, store raw and flattened rows in DB."""
+    app.logger.info("Fetching ARSO XML from %s", url)
+    r = requests.get(url, timeout=30)
+    r.raise_for_status()
+    xml_text = r.text
+
+    rows, meta = flatten_xml(xml_text)
+
+    with app.app_context():
+        rf = RawFetch(source_url=url, content=xml_text)
+        _db.session.add(rf)
+        _db.session.flush()  # get fetched_at via server_default
+        # fallback timestamp if server_default not yet applied
+        fetched_at = datetime.now(timezone.utc)
+
+        # Bulk insert flattened rows
+        objs = [
+            FlattenedValue(
+                fetched_at=fetched_at,
+                key=row["key"],
+                value=row["value"],
+                unit=row.get("unit"),
+                context=row.get("context") or {},
+            )
+            for row in rows
+        ]
+        if objs:
+            _db.session.bulk_save_objects(objs)
+        _db.session.commit()
+
+    return {"flattened_rows": len(rows), "meta": meta}
+
+
+# ----------------------------------------------------------------------------
+# App factory and routes
+# ----------------------------------------------------------------------------
+
+def create_app() -> Flask:
+    app = Flask(__name__)
+
+    # Config
+    app.config["SQLALCHEMY_DATABASE_URI"] = DEFAULT_DATABASE_URL
+    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    app.config["ARSO_URL"] = DEFAULT_ARSO_URL
+
+    # CORS for API
+    CORS(app, resources={r"/api/*": {"origins": os.environ.get("CORS_ORIGINS", "*")}})
+
+    # Logging
+    logging.basicConfig(level=os.environ.get("LOG_LEVEL", "INFO"))
+
+    # Init DB
+    _db.init_app(app)
+    with app.app_context():
+        _db.create_all()
+
+    # Routes
+    @app.get("/api/health")
+    def health() -> Response:
+        last = _db.session.scalar(_db.select(func.max(RawFetch.fetched_at)))
+        return jsonify({
+            "status": "ok",
+            "last_fetch": last.isoformat() if last else None,
+        })
+
+    @app.post("/api/ingest")
+    def api_ingest() -> Response:
+        url = app.config["ARSO_URL"]
+        try:
+            result = fetch_and_ingest(app, url)
+            return jsonify({"status": "ingested", **result})
+        except Exception as e:
+            app.logger.exception("Ingest failed: %s", e)
+            return jsonify({"error": str(e)}), 500
+
+    @app.get("/api/raw/latest")
+    def raw_latest() -> Response:
+        rf = (
+            _db.session.query(RawFetch)
+            .order_by(RawFetch.fetched_at.desc())
+            .limit(1)
+            .one_or_none()
+        )
+        if not rf:
+            return jsonify({"error": "no data"}), 404
+        return Response(rf.content, mimetype="application/xml")
+
+    @app.get("/api/summary")
+    def summary() -> Response:
+        # Return flattened values from the most recent fetch
+        latest_ts = _db.session.scalar(_db.select(func.max(FlattenedValue.fetched_at)))
+        if not latest_ts:
+            return jsonify({"items": [], "fetched_at": None})
+
+        q = request.args.get("q", "").strip()  # filter by key substring (case-insensitive)
+        limit = max(1, min(int(request.args.get("limit", 500)), 5000))
+
+        query = _db.session.query(FlattenedValue).filter(FlattenedValue.fetched_at == latest_ts)
+        if q:
+            query = query.filter(FlattenedValue.key.ilike(f"%{q}%"))
+        items = [
+            {
+                "key": r.key,
+                "value": r.value,
+                "unit": r.unit,
+                "context": r.context or {},
+            }
+            for r in query.order_by(FlattenedValue.key.asc()).limit(limit).all()
+        ]
+        return jsonify({"items": items, "fetched_at": latest_ts.isoformat()})
+
+    # Scheduler (hourly)
+    if APSCHEDULER_AVAILABLE and os.environ.get("DISABLE_SCHEDULER") != "1":
+        try:
+            scheduler = BackgroundScheduler(daemon=True, timezone=str(timezone.utc))
+            # Run at minute 5 every hour
+            scheduler.add_job(
+                func=lambda: fetch_and_ingest(app, app.config["ARSO_URL"]),
+                trigger="cron",
+                minute=5,
+                id="hourly_ingest",
+                replace_existing=True,
+                max_instances=1,
+                coalesce=True,
+            )
+            scheduler.start()
+            app.logger.info("Scheduler started: hourly at minute 5 (UTC)")
+        except Exception as e:  # pragma: no cover
+            app.logger.warning("Failed to start scheduler: %s", e)
+
+    return app
+
+
+if __name__ == "__main__":
+    app = create_app()
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="127.0.0.1", port=port, debug=True)
