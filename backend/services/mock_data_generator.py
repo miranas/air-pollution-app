@@ -1,5 +1,4 @@
 """Mock data generator for air quality testing  """
-
 import random
 from datetime import datetime
 from typing import Dict, Any
