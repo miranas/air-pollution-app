@@ -16,7 +16,6 @@ def create_app() -> Flask:
     app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True  # Better JSON formatting
     app.config['JSON_SORT_KEYS'] = False  # Keep original order of JSON keys
     
-
     # Import blueprints
     from routes.station_routes import station_bp
     from routes.health_routes import health_bp

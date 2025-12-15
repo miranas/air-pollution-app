@@ -1,7 +1,9 @@
 import pytest
 import os
 import tempfile
-from app import app
+from app import create_app
+
+app = create_app()
 
 #shared fixtures for tests can go here
 #conftest.py makes this available everywhere:

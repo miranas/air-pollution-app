@@ -9,7 +9,6 @@ Version: 1.0
 Last updated: December 2025
 """
 
-
 from typing import List, Dict, Optional
 import requests
 from xml.etree import ElementTree as ET
@@ -17,20 +16,15 @@ import logging
 import time
 import re
 import codecs
-from utils.decorators import handle_service_exception
-
+from utils.decorators import handle_service_exception, handle_http_request_exception
+from utils.config import ARSO_STATIONS_URL, REQUEST_TIMEOUT, CACHE_DURATION
  
-
-# Configuration constants
-ARSO_STATIONS_URL = "https://www.arso.gov.si/xml/zrak/ones_zrak_urni_podatki_zadnji.xml"
-CACHE_DURATION = 3600 # 1 hour in seconds
-REQUEST_TIMEOUT = 10 # seconds
-
 
 
 # Cache for stations data, loaded from API
 _station_cache: Optional[List[Dict[str,str]]] = None
 _cache_timestamp: Optional[float] = None
+
 
 
 # Function to decode Unicode escape sequencec -> UTF-8  
@@ -88,6 +82,7 @@ def decode_unicode_escapes(text: str) -> str:
 
 
 @handle_service_exception
+@handle_http_request_exception
 def fetch_stations_from_arso() -> Optional[List[Dict[str,str]]]:
     """Fetch station List from ARSO API"""
     try:
@@ -125,14 +120,12 @@ def fetch_stations_from_arso() -> Optional[List[Dict[str,str]]]:
         logging.info(f"Loaded {len(stations)} stations from ARSO API")
         return stations
     
-
-    except requests.RequestException as e:
-        logging.error(f"Failed to fetch stations from ARSO: {e} ")
-        return None
+    
     except ET.ParseError as e:
         logging.error(f"Failed to parse ARSO XML:{e}")
         return None
     
+
 
 def is_cache_valid() -> bool:
     """Check if the cache is still valid."""

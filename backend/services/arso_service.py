@@ -16,10 +16,10 @@ class AirQualityService(MockDataGenerator):
         print("🇸🇮AirQualityService initaialized with ARSO data")
 
     def get_current_readings(self, station_id: str )-> Optional[Dict[str, Any]]:
-        from data.stations import get_station_by_id
+        from data.stations import get_station_by_id_or_name
 
         #Check if stataion exists with the method defined in stations.py
-        station = get_station_by_id(station_id)
+        station = get_station_by_id_or_name(station_id)
     
         if not station:
             print(f"Station {station_id} does not exist!")
