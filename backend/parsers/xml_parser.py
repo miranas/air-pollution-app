@@ -52,6 +52,9 @@ def fetch_arso_xml() -> Tuple[bool, Optional[str], Optional[str]]:
     
     return True, response.text, None
 
+
+
+
     
 
 
