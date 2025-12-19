@@ -1,0 +1,149 @@
+from __future__ import annotations
+from dataclasses import dataclass
+from typing import Optional, List, Any, Dict
+import re
+from datetime import datetime
+from data.stations import decode_unicode_escapes
+from xml.etree import ElementTree
+
+
+#=============================================================================
+# ARSO metadata from root element
+#=============================================================================
+
+
+@dataclass
+class ARSOmetadata:
+    """
+    Metadata from the root ARSO XML document
+    """
+    # CLASS FIELD DEFINITIONS (what every ARSOmetadata object has)
+    version: Optional[str] = None   # <verzija> atribute
+    source: Optional[str] = None    # <vir> element
+    suggested_fetch_time: Optional[str] = None # <predlagan_zajem> element
+    suggested_update_fetch_interval: Optional[str] = None # <predlagan_zajem_perioda> element
+    preparation_timestamp: Optional[datetime] = None # <datum_priprave> element
+
+
+    def __post_init__(self):
+        """
+        VALIDATES AND CLEAN meatadata after object creation
+
+        This runs AUTOMATICALLY after any ARSOmetadata objec is created,
+        whether from from_xml_root or direct instantiation."""
+
+        # Clean version string (remove extra whitespaces)
+        if self.version:
+            self.version = self.version.strip()
+        # Decode unicode escapes in source string and clean it from whitespaces
+        if self.source:
+            self.source = self.source.strip()
+            self.source = decode_unicode_escapes(self.source)
+        
+        # Clean suggested fetch time
+        if self.suggested_fetch_time:
+            self.suggested_fetch_time = self.suggested_fetch_time.strip()
+
+        # Clean suggested update fetch interval and decode it
+        if self.suggested_update_fetch_interval:
+            self.suggested_update_fetch_interval = self.suggested_update_fetch_interval.strip()
+            self.suggested_update_fetch_interval = decode_unicode_escapes(self.suggested_update_fetch_interval)
+        
+           
+
+
+    @classmethod
+    def from_xml_root(cls, root_element: ElementTree.Element) -> ARSOmetadata:
+        """
+        Extract ARSO metadata from root XML element
+        and returns ARSOmetadata class instance
+
+        Args:
+            root_element: Root <arsopodatki> element  
+
+        Returns:
+            ARSOmetadata class instance with extracted metadata
+            from the root element
+
+        """
+        # LOCAL VARIABLES (temporary extraction from XML)
+        version = root_element.get('verzija')  # Extracts version from XML attribute
+        source = root_element.findtext('vir')  # Extracts source from XML element <vir>
+        suggested_fetch_time = root_element.findtext('predlagan_zajem')  #  Extracts  from XML element <predlagan_zajem>
+        suggested_update_fetch_interval = root_element.findtext('predlagan_zajem_perioda')
+        preparation_timestamp = root_element.findtext('datum_priprave') or None
+
+        if preparation_timestamp is not None:
+            try:
+                # Convert STRING to DATETIME object with proper format strptime
+                preparation_timestamp = datetime.strptime(preparation_timestamp, '%d-%m-%Y %H:%M')
+            except ValueError:
+                # If the string doesn't match our expected format, keep as None
+                preparation_timestamp = None
+
+        # CREATE and RETURN new instance of the class using extracted data
+        # These are local variables being parse to CLASS FIELD definitions
+        return cls(
+            version=version,
+            source=source,
+            suggested_fetch_time=suggested_fetch_time,
+            suggested_update_fetch_interval=suggested_update_fetch_interval,
+            preparation_timestamp=preparation_timestamp,
+        )
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """ Convert ARSO metadata to dictionary for JSON serialization
+            Class fields values are mapped to dictionary keys/value """
+        return {
+            'version': self.version,  
+            'source': self.source,
+            'suggested_fetch_tinme': self.suggested_fetch_time,
+            'suggested_update_fetch_interval': self.suggested_update_fetch_interval,
+            'preparation_timestamp': self.preparation_timestamp if self.preparation_timestamp else None
+
+            }
+    
+#================================================================================
+# STATION INFORMATION
+#===============================================================================
+                                                     
+@dataclass
+class StationInfo:
+    """
+    Represents an air quality monitoring station from ARSO data.
+    This model focuses ONLY on ARSO station metadata and not measurements.
+    Measurements are handled separately in the measurements module.
+    
+    """
+
+    # Required fields
+    id: str # sifra
+    name: str # merilno_mesto (from child element)
+
+    # WGS coordinates (international standard for GPS)
+    latitude: Optional[float] = None   #wgs84_sirina
+    longitude: Optional[float] = None  #wgs84 dolžina
+
+    # Slovenian national coordinates (D96/TM)
+    d96_easting: Optional[float] = None  # d96_e
+    d96_northing: Optional[float] = None # d96_n
+
+    # Elevation above see level height
+    elevation_meters: Optional[int] = None  # nadm_visina
+
+
+    def __post_init__(self):
+        """
+        Validate and clean station data after object creation
+
+        This runs AUTOMATICALY after StationInfo object is created,
+        no matter how it was created 
+        """
+
+
+
+    
+
+
+
+
