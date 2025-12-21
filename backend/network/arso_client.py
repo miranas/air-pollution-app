@@ -6,7 +6,7 @@ import logging
 
 
 # import existing constants
-from utils.config import  (
+from backend.network.config import  (
     ARSO_STATIONS_URL,        # "https://www.arso.gov.si/xml/zrak/ones_zrak_urni_podatki_zadnji.xml"
     REQUEST_TIMEOUT,          # 10 seconds
     

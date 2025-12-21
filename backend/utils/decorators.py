@@ -4,7 +4,7 @@ import logging
 from flask import jsonify
 from typing import Callable, Any, Tuple, Optional
 import requests
-from utils.config import REQUEST_TIMEOUT
+from backend.network.config import REQUEST_TIMEOUT
 
 
 

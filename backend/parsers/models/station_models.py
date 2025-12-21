@@ -1,7 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Optional, List, Any, Dict
-import re
+from typing import Optional, Any, Dict
 from datetime import datetime
 from data.stations import decode_unicode_escapes
 from xml.etree import ElementTree
@@ -13,12 +12,12 @@ from xml.etree import ElementTree
 
 
 @dataclass
-class ARSOmetadata:
+class ARSOMetadata:
     """
     Metadata from the root ARSO XML document
     """
-    # CLASS FIELD DEFINITIONS (what every ARSOmetadata object has)
-    version: Optional[str] = None   # <verzija> atribute
+    # CLASS FIELD DEFINITIONS (what every ARSOMetadata object has)
+    version: Optional[str] = None   # <verzija> attribute
     source: Optional[str] = None    # <vir> element
     suggested_fetch_time: Optional[str] = None # <predlagan_zajem> element
     suggested_update_fetch_interval: Optional[str] = None # <predlagan_zajem_perioda> element
@@ -29,7 +28,7 @@ class ARSOmetadata:
         """
         VALIDATES AND CLEAN meatadata after object creation
 
-        This runs AUTOMATICALLY after any ARSOmetadata objec is created,
+        This runs AUTOMATICALLY after any ARSOMetadata object is created,
         whether from from_xml_root or direct instantiation."""
 
         # Clean version string (remove extra whitespaces)
@@ -53,10 +52,10 @@ class ARSOmetadata:
 
 
     @classmethod
-    def from_xml_root(cls, root_element: ElementTree.Element) -> ARSOmetadata:
+    def from_xml_root(cls, root_element: ElementTree.Element) -> ARSOMetadata:
         """
         Extract ARSO metadata from root XML element
-        and returns ARSOmetadata class instance
+        and returns ARSOMetadata class instance
 
         Args:
             root_element: Root <arsopodatki> element  
@@ -76,7 +75,7 @@ class ARSOmetadata:
         if preparation_timestamp is not None:
             try:
                 # Convert STRING to DATETIME object with proper format strptime
-                preparation_timestamp = datetime.strptime(preparation_timestamp, '%d-%m-%Y %H:%M')
+                preparation_timestamp = datetime.strptime(preparation_timestamp, '%Y-%m-%d %H:%M')
             except ValueError:
                 # If the string doesn't match our expected format, keep as None
                 preparation_timestamp = None
@@ -97,21 +96,20 @@ class ARSOmetadata:
         return {
             'version': self.version,  
             'source': self.source,
-            'suggested_fetch_tinme': self.suggested_fetch_time,
+            'suggested_fetch_time': self.suggested_fetch_time,
             'suggested_update_fetch_interval': self.suggested_update_fetch_interval,
-            'preparation_timestamp': self.preparation_timestamp if self.preparation_timestamp else None
+            'preparation_timestamp': self.preparation_timestamp.isoformat() if self.preparation_timestamp else None
 
             }
     
 #================================================================================
-# STATION INFORMATION
+# ARSO METADATA-STATION INFORMATION
 #===============================================================================
                                                      
 @dataclass
 class StationInfo:
     """
-    Represents an air quality monitoring station from ARSO data.
-    This model focuses ONLY on ARSO station metadata and not measurements.
+    This class focuses ONLY on ARSO station metadata and not measurements.
     Measurements are handled separately in the measurements module.
     
     """
@@ -139,7 +137,13 @@ class StationInfo:
         This runs AUTOMATICALY after StationInfo object is created,
         no matter how it was created 
         """
-
+        # Validation
+        if not self.id or not self.id.strip():
+            raise ValueError("Station ID is empty")
+        if not self.name or not self.name.strip():
+            raise ValueError("Station name is empty!")
+        
+        
 
 
     
