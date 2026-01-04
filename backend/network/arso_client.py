@@ -1,4 +1,4 @@
-from utils.decorators import handle_exceptions, add_timing, handle_http_request_exception
+from backend.utils.decorators import handle_exceptions, add_timing, handle_http_request_exception
 from typing import Tuple, Optional
 import requests
 import logging

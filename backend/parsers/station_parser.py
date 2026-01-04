@@ -10,9 +10,9 @@ import logging
 from typing import List
 
 
-from utils.decorators import handle_exceptions, add_timing
-from models.station_models import StationInfo
-from models.parse_result import ParseResult
+from backend.utils.decorators import handle_exceptions, add_timing
+from backend.parsers.models.station_models import StationInfo
+from backend.parsers.models.parse_result import ParseResult
 
 #=====================================================================
 # XML PARSING METHODS
@@ -21,8 +21,7 @@ from models.parse_result import ParseResult
 @handle_exceptions
 @add_timing
 def parse_stations_from_xml(xml_content: str) -> ParseResult: 
-    
-    
+        
     try:
         # STEP 1: INITIAL SETUP AND LOGIC
         logging.info("Starting XML parsing for stations")
@@ -52,37 +51,17 @@ def parse_stations_from_xml(xml_content: str) -> ParseResult:
         # Counter for stations that couldn't be parsed
         skipped_stations = 0
 
-        # STEP 6: ITERATE THROUGH EACH STATION ELEMENT
+        # STEP 6: ITERATE THROUGH EACH STATION ELEMENT => all_station_elements = tree.findall('.//postaja')
         for single_station_element in all_station_elements:
             
             try:
-                # STEP 6A: EXTRACT STATION ID
-                # get() method extracts attribute of XML element 'postaja'
-                # findtext() method extracts child elements 
-                station_id = single_station_element.get('sifra')
-                logging.info(f"Parsing station with ID: {station_id}")
-
-                # STEP 6B: VALIDATE STATION ID
-                if not station_id or station_id.strip() == "":
-                    logging.info("Station missing or invalid ID, skipping")
-                    skipped_stations += 1
-                    continue #skip to next station element
-            
-                # STEP 6C: EXTRACT STATION NAME     
-                station_name = single_station_element.findtext('merilno_mesto')
-                if station_name is None:
-                    logging.info(f"Station with ID {station_id} has missing name")
-                    skipped_stations += 1
-                    continue # skip to next station element
-                station_name = station_name.strip()
-
+                
                 #STEP 6E: CREATE STATIONINFO OBJECT:
-                single_parsed_station: StationInfo = StationInfo(id=station_id, name=station_name)
+                single_parsed_station = StationInfo.from_xml_element(single_station_element)
 
                 # STEP 6F: APPEND TO COLLECTOR LIST
                 all_parsed_stations.append(single_parsed_station)
-                logging.info(f"Successfully parsed station: {station_id}:{station_name}")
-
+                
             
             except Exception as station_error:
                 skipped_stations += 1 # Increment skipped counter

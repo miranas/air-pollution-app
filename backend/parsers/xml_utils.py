@@ -1,5 +1,6 @@
 import codecs
 import re
+import logging
 
 
 # Function to decode Unicode escape sequencec -> UTF-8  

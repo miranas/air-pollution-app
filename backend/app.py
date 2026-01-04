@@ -47,19 +47,19 @@ def create_app() -> Flask:
     app.json_provider_class = UTF8JsonProvider
 
 
-    #Global UTF-8 header - aplies to all routes automatically Built-in Flask hook -runs after every request
+    # Global UTF-8 header - aplies to all routes automatically Built-in Flask hook -runs after every request
     def _after_request(response: Response) -> Response:
 
-        #only set JSON headers for JSON responses
+        # only set JSON headers for JSON responses
         if response.content_type and 'application/json' in response.content_type:
             response.headers['Content-Type'] = 'application/json; charset=utf-8'
 
-        #CORS headers for all responses   
+        # CORS headers for all responses
         response.headers['Access-Control-Allow-Origin'] = '*'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
         response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
 
-        #Cache control for all respnses
+        # Cache control for all responses
         response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
