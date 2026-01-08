@@ -1,19 +1,25 @@
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import Optional, Union, Dict
 from datetime import datetime
+from xml.etree import ElementTree
+from backend.parsers.xml_utils import decode_unicode_escapes
+
+
 
 
 #============================================================
 # MEASUREMENT DATA MODEL
 #============================================================
 @dataclass
-class Measurement:
+class Measurements:
     """
-    Represents air pollution measurements taken for a single station
+    This class represents air pollution measurements 
+    taken for a single pollutant
     """
-    station_id: str
-    time_from: datetime
-    time_to: datetime
+    station_id: str # sifra
+    station_name:str #merilno_mesto
+    time_from: Optional[datetime] # datum_od
+    time_to: Optional[datetime] # datum_do
     co: Optional[int] = None
     o3: Optional[int] = None
     no2: Optional[int] = None
@@ -29,44 +35,98 @@ class Measurement:
         """
         if not self.station_id or not str(self.station_id).strip():
             raise ValueError("Invalid station ID")
+        
+        self.station_name = self.station_name.strip()
+        self.station_name = decode_unicode_escapes(self.station_name)
+        
+        
+        if not self.station_name or not str(self.station_name.strip()):
+            raise ValueError("Invalid station name")
 
-        # Validate time range
+        # Validate time range presence and order
+        if self.time_from is None or self.time_to is None:
+            raise ValueError("Missing time_from or time_to")
         if self.time_from >= self.time_to:
             raise ValueError("Time range is invalid")
+        
 
-        # Validate pollutant values: if provided they must be numbers and non-negative
-        for pollutant, value in {
-            "CO": self.co,
-            "O3": self.o3,
-            "NO2": self.no2,
-            "SO2": self.so2,
-            "PM10": self.pm10,
-            "PM2_5": self.pm2_5,
-            "BENZEN": self.benzen
-        }.items():            
+    @classmethod
+    def from_xml_element(cls, element: ElementTree.Element) -> "Measurements":
+        # extract attributes
+        station_id = element.get("sifra") or ""
+        station_name = element.findtext("merilno_mesto") or ""
+        time_from_text = element.findtext("datum_od")
+        time_to_text = element.findtext("datum_do")
+        co_text = element.findtext("co")
+        o3_text = element.findtext("o3")
+        no2_text = element.findtext("no2")
+        so2_text = element.findtext("so2")
+        pm2_5_text = element.findtext("pm2_5")
+        pm10_text = element.findtext("pm10")
+        benzen_text = element.findtext("benzen")
 
-            # skip missing values
-            if value is None:
-                continue
 
-            # ensure numeric type
-            if not isinstance(value, (int, float)):
-                raise TypeError(f"{pollutant} value must be a number, got {type(value).__name__}")
-
-            # ensure non-negative measurements
-            if value < 0:
-                raise ValueError(f"{pollutant} value cannot be negative")
-            
+        # This helper function takes a string from XML
+        # as text variable and tries to convert it to an integer
+        def _to_int(text: Optional[str]) -> Optional[int]:
+            if not text:
+                return None
             try:
-                # set the correct type for each pollutant
-                if pollutant == "benzen":
-                    setattr(self, pollutant, float(value))
-                else:
-                    setattr(self, pollutant, int(value))                
+                return int(text)
+            except ValueError:
+                return None
 
-            except Exception:
-                setattr(self,pollutant, None) # Skip invalid values
-            
+        def _to_float(text: Optional[str]) -> Optional[float]:
+            if not text:
+                return None
+            try:
+                return float(text)
+            except ValueError:
+                return None
+
+        # Convert time string to datetime objects
+        time_from = datetime.strptime(time_from_text, "%d-%m-%Y @ %H:%M") if time_from_text else None
+        time_to = datetime.strptime(time_to_text, "%d-%m-%Y @ %H:%M") if time_to_text else None
+
+        return cls(            
+            station_id=station_id,
+            station_name=station_name,
+            time_from=time_from,
+            time_to=time_to,
+            co=_to_int(co_text),
+            o3=_to_int(o3_text),
+            no2=_to_int(no2_text),
+            so2=_to_int(so2_text),
+            pm2_5=_to_int(pm2_5_text),
+            pm10=_to_int(pm10_text),
+            benzen=_to_float(benzen_text),
+        )
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                 
+
+
+
+    
+
+
+
+
+
+
 
 
 

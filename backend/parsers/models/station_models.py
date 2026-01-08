@@ -7,7 +7,7 @@ from backend.parsers.xml_utils import decode_unicode_escapes
 
 
 #=============================================================================
-# ARSO metadata from root element
+# ARSO METADATA FROM ROOT ELEMENT
 #=============================================================================
 
 
@@ -73,7 +73,7 @@ class ARSOMetadata:
         if preparation_timestamp is not None:
             try:
                 # Convert STRING to DATETIME object with proper format strptime
-                preparation_timestamp = datetime.strptime(preparation_timestamp, '%Y-%m-%d %H:%M')
+                preparation_timestamp = datetime.strptime(preparation_timestamp, "%d-%m-%Y @ %H:%M")
             except ValueError:
                 # If the string doesn't match our expected format, keep as None
                 preparation_timestamp = None
@@ -155,7 +155,7 @@ class StationInfo:
         Args:
             element: XML element <postaja> and its attributes representing a single station
         Returns:
-            ARSO StationInfo class instance with extractes data
+            ARSO StationInfo class instance with extracted data
         """
         station_id = element.get("sifra")
         station_name = element.findtext("merilno_mesto") #child element in the <postaja> XML structure
@@ -211,6 +211,9 @@ class StationInfo:
             elevation_meters = elevation_meters
 
         )
+    
+    
+
 
         
                                    

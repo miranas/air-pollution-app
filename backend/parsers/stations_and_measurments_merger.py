@@ -34,9 +34,15 @@ def merge_stations_and_measurements(
         if single_station.station_id is None:
             continue
 
+        # For single_station in stations list which is made of StationInfo objects
+        # create a dictionary named merged_data 
+        # where each key is a station_id from StationInfo object,
+        # value is a inner dictionary with keys "info"
+        # and "measurements" and values StationInfo object
+        # and measurements empty list
         merged_data[single_station.station_id] = {
             "info": StationInfo(
-                # Only for id and name attributes of StationInfo object
+                # Only for id and name attributes of StationInfo object could add other attributes if needed
                 station_id=single_station.station_id,
                 station_name=single_station.station_name,
             ),
@@ -45,9 +51,17 @@ def merge_stations_and_measurements(
             "measurements_list": []
         }
 
-    # Append measurrements to coresponding station
-    for single_measurement in measurements: # for every Measurement object in Measuremnts list
+    # Append measurrements to coresponding station:
+    # for each Measurement object in measurements list
+    # check if the station_id already exists in merged_data dictionary    
+    for single_measurement in measurements: 
         if single_measurement.station_id in merged_data:
+           
+            
+            # access the merged_data dictionary with StationInfo objects
+            # get the station_id from every Mesuremant object [single_measurement.station_id]
+            # access the list of measurements for that station ["measurements_list"]
+            # add the current measurements to that list '.append(single_measurement)'
             merged_data[single_measurement.station_id]["measurements_list"].append(single_measurement)
 
         else:
@@ -59,6 +73,3 @@ def merge_stations_and_measurements(
 
 
         
-    if __name__ == "__main__":
-        merged = merge_stations_and_measurements(stations, measurements)
-        print(merged)

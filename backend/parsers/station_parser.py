@@ -1,7 +1,7 @@
 """
 Station Parser Module
 =====================
-Parses only station informations from XML
+Parses only station informations from ARSO XML
 and converts them into StationInfo dataclass instances
 """
 
@@ -14,7 +14,7 @@ from backend.utils.decorators import handle_exceptions, add_timing
 from backend.parsers.models.station_models import StationInfo
 from backend.parsers.models.parse_result import ParseResult
 
-#=====================================================================
+# =====================================================================
 # XML PARSING METHODS
 # ====================================================================
 
@@ -26,7 +26,7 @@ def parse_stations_from_xml(xml_content: str) -> ParseResult:
         # STEP 1: INITIAL SETUP AND LOGIC
         logging.info("Starting XML parsing for stations")
         
-        # STEP 2: PARSE THE XML CONTENT
+        # STEP 2: PARSE THE XML CONTENT, TREE IS THE ROOT ELEMENT OF THE XML PARSED DOCUMENT
         tree = ET.fromstring(xml_content.encode('utf-8'))
         
         # STEP 3: FIND ALL STATION ELEMENTS IN THE XML TREE, DESCENDATS OF THE 'postaja'                
@@ -45,6 +45,7 @@ def parse_stations_from_xml(xml_content: str) -> ParseResult:
         
         # STEP 5: INITIALIZE COLLECTORS AND COUNTERS
         logging.info("Starting to parse individual station elements")
+        
         # Empty list to collect successfully parsed stations
         all_parsed_stations: List[StationInfo] = []
 
@@ -56,7 +57,7 @@ def parse_stations_from_xml(xml_content: str) -> ParseResult:
             
             try:
                 
-                #STEP 6E: CREATE STATIONINFO OBJECT:
+                #STEP 6E: CREATE STATIONINFO OBJECT FROM STATIONINFO CLASS MODEL:
                 single_parsed_station = StationInfo.from_xml_element(single_station_element)
 
                 # STEP 6F: APPEND TO COLLECTOR LIST
