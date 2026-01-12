@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify
-from utils.decorators import add_timing, handle_exceptions
+from backend.utils.decorators import add_timing, handle_exceptions
 
 # Create blueprint
 health_bp = Blueprint('health', __name__)

@@ -14,9 +14,9 @@ import requests
 from xml.etree import ElementTree as ET
 import logging
 import time
-from utils.decorators import handle_service_exception, handle_http_request_exception
+from backend.utils.decorators import handle_service_exception, handle_http_request_exception
 from backend.network.config import ARSO_STATIONS_URL, REQUEST_TIMEOUT, CACHE_DURATION
-from parsers.xml_utils import decode_unicode_escapes
+from backend.parsers.xml_utils import decode_unicode_escapes
 
 
 # Cache for stations data, loaded from API

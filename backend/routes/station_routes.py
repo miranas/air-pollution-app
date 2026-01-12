@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify, Response
 from typing import List, Dict, Any, Tuple, Union
-from data.stations import get_all_stations, get_station_by_id_or_name
-from utils.decorators import handle_exceptions, add_timing
+from backend.data.stations import get_all_stations, get_station_by_id_or_name
+from backend.utils.decorators import handle_exceptions, add_timing
 
 
 # Create blueprint

@@ -15,7 +15,7 @@ from backend.parsers.models.parse_result import ParseResult
 # PARSING METHODS
 # ===============================================================
 
-def parse_measurements_from_xml(xml_content: str) -> ParseResult
+def parse_measurements_from_xml(xml_content: str) -> ParseResult:
     try:
         logging.info("Starting XML parsing for measurements")
         
@@ -29,7 +29,7 @@ def parse_measurements_from_xml(xml_content: str) -> ParseResult
             return ParseResult(
                 success=False,
                 data=[],
-                items_parsed= 0
+                items_parsed=0,
                 error_message="No measurements found"
             )
         

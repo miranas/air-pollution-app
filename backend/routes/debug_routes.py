@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify
-from utils.decorators import handle_exceptions, add_timing 
+from backend.utils.decorators import handle_exceptions, add_timing 
 import re
 
 

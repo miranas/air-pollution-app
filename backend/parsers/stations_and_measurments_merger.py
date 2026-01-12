@@ -1,6 +1,6 @@
 from typing import Dict, List, Any
 from backend.parsers.models.station_models import StationInfo
-from backend.parsers.models.measurement_model import Measurement
+from backend.parsers.models.measurement_model import Measurements
 import logging
 
 #================================================================
@@ -9,7 +9,7 @@ import logging
 
 def merge_stations_and_measurements(
         stations: List[StationInfo], 
-        measurements: List[Measurement]
+        measurements: List[Measurements]
 
 ) -> Dict[str, Dict[str, Any]]: # Return type: 
     """

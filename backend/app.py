@@ -1,6 +1,10 @@
 from flask import Flask, Response
 from flask.json.provider import DefaultJSONProvider
 import logging
+from backend.network.arso_client import fetch_arso_xml
+from backend.parsers.station_parser import parse_stations_from_xml
+from backend.parsers.measurments_parser import parse_measurements_from_xml
+from backend.parsers.stations_and_measurments_merger import merge_stations_and_measurements
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -17,9 +21,9 @@ def create_app() -> Flask:
     app.config['JSON_SORT_KEYS'] = False  # Keep original order of JSON keys
     
     # Import blueprints
-    from routes.station_routes import station_bp
-    from routes.health_routes import health_bp
-    from routes.debug_routes import debug_bp
+    from backend.routes.station_routes import station_bp
+    from backend.routes.health_routes import health_bp
+    from backend.routes.debug_routes import debug_bp
 
     # Register blueprints
     app.register_blueprint(station_bp)
@@ -77,7 +81,70 @@ def create_app() -> Flask:
 # run the app
 if __name__ == "__main__":
     app = create_app()
-    app.run(debug=True)
+    #app.run(debug=True)
+
+    # Fetch XML from ARSO
+    success, xml_content, error = fetch_arso_xml()
+    if not success or not xml_content:
+        print(f"Error fetching XML {error}")
+        exit(1)
+
+    # Parse stations, returns StationParseResult
+    # xml_content is expected to be a valid XML string containing station data
+    # in the case of error return StationParseResult from the parse_stations_from_xml method
+    # but only error_message variable from that class
+    # In the case of success return ParseResult class instance with data variable 
+    # containing list of successfully parsed StationInfo objects
+    station_result = parse_stations_from_xml(xml_content)
+    if not station_result.success:
+        print(f"Error parsing stations:{station_result.error_message}")
+        exit(1)   
+
+
+
+    # parse measuremens return Measurement 
+    measurement_result = parse_measurements_from_xml(xml_content)
+    if not measurement_result.success:
+        print(f"Error parsing measuremnts {str(measurement_result.error_message)}")
+        exit(1)    
+
+
+    # merge stations and mesurements
+    merged_data = merge_stations_and_measurements(
+        station_result.data, 
+        measurement_result.data)
+    
+    
+    if not merged_data:
+        print("Not merged data available")
+    else:
+        print(f"Merged data for len{merge_stations_and_measurements} stations")
+
+        for station_id, station_info in merged_data.items():
+            print(f"Station ID: {station_id}")
+            print(f"  Name: {station_info['info'].station_name}")
+            print(f"  Measurements ({len(station_info['measurements_list'])}):")
+            
+            for m in station_info['measurements_list'][:23]:  # Print first 5 measurements for brevity
+                print(f"    {m}")
+            if len(station_info['measurements_list']) > 5:
+                print(f"    ...and {len(station_info['measurements_list']) - 5} more\n")
+            else:
+                print()
+            
+   
+
+
+
+    
+
+
+    
+
+    
+
+    
+
 
 
 

@@ -20,13 +20,16 @@ class Measurements:
     station_name:str #merilno_mesto
     time_from: Optional[datetime] # datum_od
     time_to: Optional[datetime] # datum_do
-    co: Optional[int] = None
+    co: Optional[float] = None
     o3: Optional[int] = None
     no2: Optional[int] = None
     so2: Optional[int] = None
     pm10: Optional[int] = None
-    pm2_5: Optional[int] = None
-    benzen: Optional[float] = None
+    pm25: Optional[int] = None
+    nox: Optional[int] = None
+    benzen: Optional[float] = None   
+    
+
 
 
     def __post_init__(self):
@@ -61,9 +64,10 @@ class Measurements:
         o3_text = element.findtext("o3")
         no2_text = element.findtext("no2")
         so2_text = element.findtext("so2")
-        pm2_5_text = element.findtext("pm2_5")
+        pm25_text = element.findtext("pm2.5")
         pm10_text = element.findtext("pm10")
         benzen_text = element.findtext("benzen")
+        nox_text = element.findtext("nox")
 
 
         # This helper function takes a string from XML
@@ -72,6 +76,10 @@ class Measurements:
             if not text:
                 return None
             try:
+                # handles values like "<2"
+                if text.strip().startswith("<"):
+                    return int(float(text.strip()[1:]))                
+
                 return int(text)
             except ValueError:
                 return None
@@ -80,26 +88,32 @@ class Measurements:
             if not text:
                 return None
             try:
+                # handles values like "<2" 
+                if text.strip().startswith("<"):
+                    return float(text.strip()[:1])
                 return float(text)
             except ValueError:
                 return None
+            
+        
 
         # Convert time string to datetime objects
-        time_from = datetime.strptime(time_from_text, "%d-%m-%Y @ %H:%M") if time_from_text else None
-        time_to = datetime.strptime(time_to_text, "%d-%m-%Y @ %H:%M") if time_to_text else None
+        time_from = datetime.strptime(time_from_text, "%Y-%m-%d %H:%M") if time_from_text else None
+        time_to = datetime.strptime(time_to_text, "%Y-%m-%d %H:%M") if time_to_text else None
 
         return cls(            
             station_id=station_id,
             station_name=station_name,
             time_from=time_from,
             time_to=time_to,
-            co=_to_int(co_text),
+            co=_to_float(co_text),
             o3=_to_int(o3_text),
             no2=_to_int(no2_text),
             so2=_to_int(so2_text),
-            pm2_5=_to_int(pm2_5_text),
+            pm25=_to_int(pm25_text),
             pm10=_to_int(pm10_text),
             benzen=_to_float(benzen_text),
+            nox=_to_int(nox_text)
         )
 
 
