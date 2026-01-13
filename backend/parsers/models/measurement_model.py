@@ -1,8 +1,9 @@
 from dataclasses import dataclass
-from typing import Optional, Union, Dict
+from typing import Optional
 from datetime import datetime
 from xml.etree import ElementTree
 from backend.parsers.xml_utils import decode_unicode_escapes
+
 
 
 
