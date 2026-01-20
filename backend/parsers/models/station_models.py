@@ -105,7 +105,7 @@ class ARSOMetadata:
 #===============================================================================
                                                      
 @dataclass
-class StationInfo:
+class ParsedStationModel:
     """
     This class focuses ONLY on ARSO station metadata and not measurements.
     Measurements are handled separately in the measurements module.
@@ -146,10 +146,11 @@ class StationInfo:
         self.station_name = decode_unicode_escapes(self.station_name)
         
         
+        
                 
 
     @classmethod 
-    def from_xml_element(cls, element: ElementTree.Element) -> "StationInfo":
+    def from_xml_element(cls, element: ElementTree.Element) -> "ParsedStationModel":
         """
         Extract XML data from <postaja> element
         Args:

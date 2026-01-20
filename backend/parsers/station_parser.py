@@ -11,7 +11,7 @@ from typing import List
 
 
 from backend.utils.decorators import handle_exceptions, add_timing
-from backend.parsers.models.station_models import StationInfo
+from backend.parsers.models.station_models import ParsedStationModel
 from backend.parsers.models.parse_result import ParseResult
 
 # =====================================================================
@@ -47,7 +47,7 @@ def parse_stations_from_xml(xml_content: str) -> ParseResult:
         logging.info("Starting to parse individual station elements")
         
         # Empty list to collect successfully parsed stations
-        all_parsed_stations: List[StationInfo] = []
+        all_parsed_stations: List[ParsedStationModel] = []
 
         # Counter for stations that couldn't be parsed
         skipped_stations = 0
@@ -58,7 +58,7 @@ def parse_stations_from_xml(xml_content: str) -> ParseResult:
             try:
                 
                 #STEP 6E: CREATE STATIONINFO OBJECT FROM STATIONINFO CLASS MODEL:
-                single_parsed_station = StationInfo.from_xml_element(single_station_element)
+                single_parsed_station = ParsedStationModel.from_xml_element(single_station_element)
 
                 # STEP 6F: APPEND TO COLLECTOR LIST
                 all_parsed_stations.append(single_parsed_station)

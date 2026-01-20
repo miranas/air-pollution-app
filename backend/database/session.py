@@ -24,7 +24,7 @@ engine = create_engine(
     pool_pre_ping=True, # Checks if connection is alive before using it
     pool_size=5, # matching my Nano Free tier limit
     max_overflow=0, # no overflow connections
-    timeout=30, # 30 seconds timeout
+    #timeout=30, # 30 seconds timeout
     echo=True, # log all SQL queries
     future=True # use 2.0 style
     )

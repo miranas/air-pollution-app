@@ -5,10 +5,10 @@ Parses measurements data from ARSO XML and converts
 them to Measurement dataclass instances 
 """
 from xml.etree import ElementTree as ET
-from typing import List
+from typing import List, cast, Any
 import logging
 from datetime import datetime
-from backend.parsers.models.measurement_model import Measurements
+from backend.parsers.models.measurement_model import ParsedMeasurementModel
 from backend.parsers.models.parse_result import ParseResult
 
 # ===============================================================
@@ -27,6 +27,7 @@ def parse_measurements_from_xml(xml_content: str) -> ParseResult:
         if not all_measurement_elements:
             logging.warning("No measurement entries found in XML data")
             return ParseResult(
+                
                 success=False,
                 data=[],
                 items_parsed=0,
@@ -34,7 +35,7 @@ def parse_measurements_from_xml(xml_content: str) -> ParseResult:
             )
         
         # Create a list of parsed measurements
-        all_parsed_measurements: List[Measurements] = []
+        all_parsed_measurements: List[ParsedMeasurementModel] = []
 
         skipped_elements = 0
 
@@ -42,12 +43,14 @@ def parse_measurements_from_xml(xml_content: str) -> ParseResult:
         # of the Measurements class model
         for single_element in all_measurement_elements:
             try:
-                single_element_measurement = Measurements.from_xml_element(single_element)
+                # Use a dynamically-typed reference to the from_xml_element function to avoid unknown return type
+                _from_xml: Any = getattr(ParsedMeasurementModel, "from_xml_element")
+                single_element_measurement: ParsedMeasurementModel = cast(ParsedMeasurementModel, _from_xml(single_element))
                 all_parsed_measurements.append(single_element_measurement)
                 
             except Exception as e:
                 skipped_elements +=1
-                logging.warning(f"Failed toparse measurement element{str(e)}")
+                logging.warning(f"Failed to parse measurement element {str(e)}")
                 continue
 
         # Statistics about parsing operation 

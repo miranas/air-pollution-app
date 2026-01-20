@@ -6,13 +6,11 @@ from backend.parsers.xml_utils import decode_unicode_escapes
 
 
 
-
-
 #============================================================
 # MEASUREMENT DATA MODEL
 #============================================================
 @dataclass
-class Measurements:
+class ParsedMeasurementModel:
     """
     This class represents air pollution measurements 
     taken for a single pollutant
@@ -28,8 +26,7 @@ class Measurements:
     pm10: Optional[int] = None
     pm25: Optional[int] = None
     nox: Optional[int] = None
-    benzen: Optional[float] = None   
-    
+    benzen: Optional[float] = None       
 
 
 
@@ -55,7 +52,7 @@ class Measurements:
         
 
     @classmethod
-    def from_xml_element(cls, element: ElementTree.Element) -> "Measurements":
+    def from_xml_element(cls, element: ElementTree.Element) -> "ParsedMeasurementModel":
         # extract attributes
         station_id = element.get("sifra") or ""
         station_name = element.findtext("merilno_mesto") or ""

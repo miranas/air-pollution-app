@@ -5,7 +5,8 @@ from backend.network.arso_client import fetch_arso_xml
 from backend.parsers.station_parser import parse_stations_from_xml
 from backend.parsers.measurments_parser import parse_measurements_from_xml
 from backend.parsers.stations_and_measurments_merger import merge_stations_and_measurements
-
+from backend.parsers.insert_data import insert_all_data
+from typing import Any, List, Tuple
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 
@@ -101,7 +102,6 @@ if __name__ == "__main__":
         exit(1)   
 
 
-
     # parse measuremens return Measurement 
     measurement_result = parse_measurements_from_xml(xml_content)
     if not measurement_result.success:
@@ -119,6 +119,7 @@ if __name__ == "__main__":
         print("Not merged data available")
     else:
         print(f"Merged data for len{merge_stations_and_measurements} stations")
+   
 
         for station_id, station_info in merged_data.items():
             print(f"Station ID: {station_id}")
@@ -131,8 +132,18 @@ if __name__ == "__main__":
                 print(f"    ...and {len(station_info['measurements_list']) - 5} more\n")
             else:
                 print()
-            
-   
+        # Build all_parsed_data from merged_data for insertion
+        all_parsed_data: List[Tuple[Any, Any]] = []
+
+        for station_id, station_and_measuremnents_data in merged_data.items():
+            station_data = station_and_measuremnents_data["info"]
+            for measurement_data in station_and_measuremnents_data["measurements_list"]:
+                all_parsed_data.append((station_data, measurement_data))
+
+
+        insert_all_data(all_parsed_data)
+        print(f"Inserted total of {len(all_parsed_data)} measurement entries into the database.")
+
 
 
 
