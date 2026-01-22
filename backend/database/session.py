@@ -7,14 +7,22 @@ from sqlalchemy.orm import sessionmaker
 # Load environment variables from .env file
 load_dotenv()
 
-raw_password = "mcrtJiIRdYj12"
+db_user = os.getenv("DB_USER")
+db_password = os.getenv("DB_PASSWORD")
+db_host = os.getenv("DB_HOST")
+db_port = os.getenv("DB_PORT")
+db_name = os.getenv("DB_NAME")
+
+
+# Ensure db_password is provided so its type is known to be str before quoting
+if db_password is None:
+    raise RuntimeError("DB_PASSWORD environment variable is not set")
 
 # URL-encode the password
-safe_password = urllib.parse.quote(raw_password)
+safe_password = urllib.parse.quote(db_password)
 
 
-
-DATABASE_URL = f"postgresql://postgres.wimojrbvaovnfzvggsdx:{safe_password}@aws-1-eu-west-1.pooler.supabase.com:6543/postgres?sslmode=require"
+DATABASE_URL = f"postgresql://{db_user}:{safe_password}@{db_host}:{db_port}/{db_name}?sslmode=require"
 
 
 

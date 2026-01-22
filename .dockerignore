@@ -1,0 +1,24 @@
+# Python trash
+
+# bytecode
+__pycache__/
+*.py[cod] # compiled files
+*$py.class # Jython compiled files
+*.pyo # optimized files
+.Python-Egg-Info/ # egg info
+
+# virtual environment
+venv/
+
+# environment variables
+.env
+
+# Documents and notes
+*.md
+.ipynb_checkpoints/ # Jupyter Notebook checkpoints
+
+
+# Git
+.git/
+.gitignore
+ 

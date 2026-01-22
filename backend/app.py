@@ -1,3 +1,5 @@
+import time
+import os
 from flask import Flask, Response
 from flask.json.provider import DefaultJSONProvider
 import logging
@@ -7,14 +9,130 @@ from backend.parsers.measurments_parser import parse_measurements_from_xml
 from backend.parsers.stations_and_measurments_merger import merge_stations_and_measurements
 from backend.parsers.insert_data import insert_all_data
 from typing import Any, List, Tuple
-# Configure logging
+from flask_caching import Cache
 logging.basicConfig(level=logging.INFO)
+from  apscheduler.schedulers.background import BackgroundScheduler  # type: ignore[reportMissingTypeStubs]
+from redis import Redis
+from redis.exceptions import ConnectionError
+
+
+# Initialize cache instance
+cache = Cache()
+
+def update_data():
+    # Fetch XML from ARSO
+    success, xml_content, error = fetch_arso_xml()
+    if not success or not xml_content:
+        logging.error(f"Error fetching XML: {error}")
+        return False
+
+    station_result = parse_stations_from_xml(xml_content)
+    if not station_result.success:
+        logging.error(f"Error parsing stations: {station_result.error_message}")
+        return False
+
+    # parse measurements return Measurement
+    measurement_result = parse_measurements_from_xml(xml_content)
+    if not measurement_result.success:
+        logging.error(f"Error parsing measurements: {measurement_result.error_message}")
+        return False
+
+    # merge stations and measurements
+    merged_data = merge_stations_and_measurements(
+        station_result.data,
+        measurement_result.data)
+
+    if not merged_data:
+        logging.info("No merged data available")
+        return False
+    else:
+        # summary log
+        logging.info(f"Merged data for {len(merged_data)} stations")
+
+        for station_id, station_info in merged_data.items():
+            logging.debug(f"Station ID: {station_id}")
+            logging.debug(f"  Name: {station_info['info'].station_name}")
+            logging.debug(f"  Measurements ({len(station_info['measurements_list'])}):")
+
+            for m in station_info['measurements_list'][:23]:
+                logging.debug(f"    {m}")
+            if len(station_info['measurements_list']) > 5:
+                logging.debug(f"    ...and {len(station_info['measurements_list']) - 5} more\n")
+            else:
+                logging.debug("")
+
+        # Build all_parsed_data from merged_data for insertion
+        all_parsed_data: List[Tuple[Any, Any]] = []
+
+        for station_id, station_and_measuremnents_data in merged_data.items():
+            station_data = station_and_measuremnents_data["info"]
+            for measurement_data in station_and_measuremnents_data["measurements_list"]:
+                all_parsed_data.append((station_data, measurement_data))
+
+        # Insert into storage
+        try:
+            insert_all_data(all_parsed_data)
+        except Exception as e:
+            logging.exception(f"Failed to insert data: {e}")
+            # continue to attempt caching the merged data even if DB insert failed
+
+        # put the merged data into the cache if available
+        try:
+            cache.set('latest_merged_data', merged_data)# type: ignore
+        except Exception:
+            logging.exception("Failed to update cache for latest_merged_data")
+
+        logging.info(f"Inserted total of {len(all_parsed_data)} measurement entries into the database.")
+        return True
+
+
+# =======================================================================
 
 
 def create_app() -> Flask:
 
     # Create Flask app
     app = Flask(__name__)
+
+    # Caching
+    # if there is no redis available use SimpleCache
+    redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379')
+
+    # 
+    use_redis = False
+
+    if redis_url:
+        attempts = 10
+        for attempt in range(attempts):
+            try:
+                redis_client: Redis = Redis.from_url(redis_url)  #type: ignore
+                if redis_client.ping(): #type: ignore
+                    use_redis = True
+                    logging.info(f"Connected to redis in {attempt +1} st attempt ")
+                    break
+                else:
+                    time.sleep(2) # wait before retrying
+
+            except ConnectionError:
+                logging.warning("Redis not ready")
+
+
+        if use_redis:            
+            app.config['CACHE_TYPE'] = 'RedisCache'
+            app.config['CACHE_REDIS_URL'] = redis_url
+            logging.info(f"Using Redis cache at {redis_url}")
+        
+        else:
+            app.config['CACHE_TYPE'] = "SimpleCache"           
+            logging.info(f"Using SimpleCache ")
+        
+        
+
+    app.config['CACHE_DEFAULT_TIMEOUT'] = 3600
+
+    # Initialize cache instance with app
+    cache.init_app(app)  # type: ignore
+
 
     # UTF-8 JSON Configuration
     app.config['JSON_AS_ASCII'] = False  # Ensure UTF-8 encoding for JSON responses
@@ -34,7 +152,7 @@ def create_app() -> Flask:
     
     # Custom JSON provider to ensure UTF-8 encoding   
     class UTF8JsonProvider(DefaultJSONProvider):
-        def dumps(self, obj, **kwargs):
+        def dumps(self, obj: Any, **kwargs: Any) -> str:
 
             """Custom JSON encoder for UTF-8 support
             This method is called every time jsonify() is used
@@ -72,77 +190,44 @@ def create_app() -> Flask:
         return response #single return point
 
 
-    # Register the after-request handler explicitly so static analyzers detect its usage
+    # Register the after-request handler 
     app.after_request(_after_request)
+
+
+    
+    # Start background scheduler for hourly updates    
+    scheduler: Any = BackgroundScheduler()
+
+    # Ensure scheduled jobs run inside the Flask application context so DB/cache usage is valid
+    def _run_update_data_in_app_context() -> None:
+        try:
+            with app.app_context():
+                update_data()
+        except Exception:
+            logging.exception("Scheduled update_data failed")
+
+    scheduler.add_job(func=_run_update_data_in_app_context, trigger='interval', hours=1)
+    scheduler.start()
+
+    logging.info("Background scheduler started for hourly data updates")
+
+
+    # Optionally run an initial data update when the app starts
+    with app.app_context():
+        update_data()
 
     return app # Return the configured app instance
 
-   
+#=======================================================================================
+# main block
 
-# run the app
-if __name__ == "__main__":
+
+if __name__ == '__main__':
     app = create_app()
-    #app.run(debug=True)
+    app.run(debug=False,host="0.0.0.0", port=5000)
 
-    # Fetch XML from ARSO
-    success, xml_content, error = fetch_arso_xml()
-    if not success or not xml_content:
-        print(f"Error fetching XML {error}")
-        exit(1)
-
-    # Parse stations, returns StationParseResult
-    # xml_content is expected to be a valid XML string containing station data
-    # in the case of error return StationParseResult from the parse_stations_from_xml method
-    # but only error_message variable from that class
-    # In the case of success return ParseResult class instance with data variable 
-    # containing list of successfully parsed StationInfo objects
-    station_result = parse_stations_from_xml(xml_content)
-    if not station_result.success:
-        print(f"Error parsing stations:{station_result.error_message}")
-        exit(1)   
-
-
-    # parse measuremens return Measurement 
-    measurement_result = parse_measurements_from_xml(xml_content)
-    if not measurement_result.success:
-        print(f"Error parsing measuremnts {str(measurement_result.error_message)}")
-        exit(1)    
-
-
-    # merge stations and mesurements
-    merged_data = merge_stations_and_measurements(
-        station_result.data, 
-        measurement_result.data)
-    
-    
-    if not merged_data:
-        print("Not merged data available")
-    else:
-        print(f"Merged data for len{merge_stations_and_measurements} stations")
    
 
-        for station_id, station_info in merged_data.items():
-            print(f"Station ID: {station_id}")
-            print(f"  Name: {station_info['info'].station_name}")
-            print(f"  Measurements ({len(station_info['measurements_list'])}):")
-            
-            for m in station_info['measurements_list'][:23]:  # Print first 5 measurements for brevity
-                print(f"    {m}")
-            if len(station_info['measurements_list']) > 5:
-                print(f"    ...and {len(station_info['measurements_list']) - 5} more\n")
-            else:
-                print()
-        # Build all_parsed_data from merged_data for insertion
-        all_parsed_data: List[Tuple[Any, Any]] = []
-
-        for station_id, station_and_measuremnents_data in merged_data.items():
-            station_data = station_and_measuremnents_data["info"]
-            for measurement_data in station_and_measuremnents_data["measurements_list"]:
-                all_parsed_data.append((station_data, measurement_data))
-
-
-        insert_all_data(all_parsed_data)
-        print(f"Inserted total of {len(all_parsed_data)} measurement entries into the database.")
 
 
 

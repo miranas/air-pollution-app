@@ -28,7 +28,7 @@ class MockDataGenerator:
               "no2": {"good": 40, "moderate": 80},
               "o3": {"good": 80, "moderate": 120},
               "so2": {"good": 20, "moderate": 50},
-              "co": {"good": 1.0, "moderate": 1.5}
+              "co": {"good": 1.0, "moderate": 1.5},
               "nox": {"good": 40, "moderate": 80},
               "benzen": {"good": 5, "moderate": 10}        
             
