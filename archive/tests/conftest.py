@@ -1,6 +1,4 @@
 import pytest
-import os
-import tempfile
 from app import create_app
 
 app = create_app()

@@ -25,7 +25,7 @@ def fetch_arso_xml() -> Tuple[bool, Optional[str], Optional[str]]:
        RETURNS:
             Tuple[success[bool],xml_data[str], error[str]]
             -True, <xml>..</xml> on success
-            -False, None, error message on afailure    
+            -False, None, error message on failure    
     """
 
     logging.info(f"Fetching ARSO xml data from {ARSO_STATIONS_URL}")

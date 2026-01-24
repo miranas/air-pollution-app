@@ -1,6 +1,6 @@
-from typing import Any, Dict
-from backend.network.arso_client import fetch_arso_xml
-from backend.parsers.station_parser import parse_stations_from_xml
+#from typing import Any, Dict
+#from backend.network.arso_client import fetch_arso_xml
+#from backend.parsers.station_parser import parse_stations_from_xml
 
 
 def fetch_and_parse_stations() -> Dict[str, Any]:

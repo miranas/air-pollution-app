@@ -14,6 +14,7 @@ logging.basicConfig(level=logging.INFO)
 from  apscheduler.schedulers.background import BackgroundScheduler  # type: ignore[reportMissingTypeStubs]
 from redis import Redis
 from redis.exceptions import ConnectionError
+from prometheus_flask_exporter import PrometheusMetrics
 
 
 # Initialize cache instance
@@ -94,6 +95,10 @@ def create_app() -> Flask:
     # Create Flask app
     app = Flask(__name__)
 
+    # Prometheus metrics
+    metrics = PrometheusMetrics(app)  # type: ignore
+
+
     # Caching
     # if there is no redis available use SimpleCache
     redis_url = os.environ.get('REDIS_URL', 'redis://localhost:6379')
@@ -139,6 +144,7 @@ def create_app() -> Flask:
     app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True  # Better JSON formatting
     app.config['JSON_SORT_KEYS'] = False  # Keep original order of JSON keys
     
+    """
     # Import blueprints
     from backend.routes.station_routes import station_bp
     from backend.routes.health_routes import health_bp
@@ -148,7 +154,7 @@ def create_app() -> Flask:
     app.register_blueprint(station_bp)
     app.register_blueprint(health_bp)
     app.register_blueprint(debug_bp)
-
+    """
     
     # Custom JSON provider to ensure UTF-8 encoding   
     class UTF8JsonProvider(DefaultJSONProvider):
