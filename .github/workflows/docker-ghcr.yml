@@ -41,6 +41,7 @@ jobs:
           context: .
           push: true
           tags: ghcr.io/miranas/air_pollution_app:latest
+          no-cache: true
     
    
 

@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   backend:
-    build: .
+    image: ghcr.io/miranas/air_pollution_app:latest
     container_name: air_pollution_app
     restart: always
     ports: 
@@ -26,7 +26,8 @@ services:
     container_name: air_pollution_app_prometheus
     restart: always
     command:
-      - 'storage.tsdb.retention.time=7d'
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=7d'
     volumes:
       # bind mount, file mapping
       - ./prometheus.yml:/etc/prometheus/prometheus.yml

@@ -41,8 +41,6 @@ engine = create_engine(
 SessionLocal = sessionmaker(bind=engine)
 
 # Test connection
-
-
 session = None
 try:
     session = SessionLocal()

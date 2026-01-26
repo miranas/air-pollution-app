@@ -3,6 +3,7 @@ from backend.database.db_models import DbModelStation, DbModelPollutant, DbModel
 from backend.parsers.models.measurement_model import ParsedMeasurementModel
 from backend.parsers.models.station_models import ParsedStationModel
 from sqlalchemy.orm import Session
+from sqlalchemy.dialects.postgresql import insert
 
 
 """
@@ -21,11 +22,16 @@ def ensure_pollutants_in_db(db:Session):
     non_pollutant_fields = {"station_id","station_name","time_from","time_to"}
     pollutant_fields = [field for field in all_fields if field not in non_pollutant_fields]
 
-    # Insert missing pollutants into database
+    # Insert pollutant into database if not already present
     for field in pollutant_fields:
         if field not in existing_pollutant:
-            new_pollutant = DbModelPollutant(name = field, unit = "μg/m³" if field != "co" else "mg/m³")
-            db.add(new_pollutant)
+            new_pollutant = insert(DbModelPollutant).values(
+                name = field, 
+                unit = "μg/m³" if field != "co" else "mg/m³"
+                ).on_conflict_do_nothing(
+                    index_elements=['name']
+                )
+            db.execute(new_pollutant)
             db.commit()
 
 
@@ -44,9 +50,8 @@ def insert_data_into_db(db: Session, parsed_stations: ParsedStationModel, parsed
         # Check if the station already exists, querying the database using SQLAlcchemy ORM. 
         db_single_station = db.query(DbModelStation).filter_by(station_id=parsed_stations.station_id).first()
         # if the station doesn't exist, create a new one:
-        if not db_single_station:
-            
-            db_single_station = DbModelStation(
+        if not db_single_station:            
+            db_single_station = insert(DbModelStation).values(
                 # Map all attributes from ParsedStationModel to DbModelStation
                 station_id = parsed_stations.station_id,
                 station_name = parsed_stations.station_name,
@@ -54,14 +59,23 @@ def insert_data_into_db(db: Session, parsed_stations: ParsedStationModel, parsed
                 longitude = parsed_stations.longitude,
                 d96_easting = parsed_stations.d96_easting,
                 d96_northing = parsed_stations.d96_northing,
-                elevation_meters = parsed_stations.elevation_meters                
+                elevation_meters = parsed_stations.elevation_meters                                        
+                              
+            ).on_conflict_do_nothing(
+                
+                index_elements=['station_id']
             )
 
             # Add the new station to the session
-            db.add(db_single_station)
+            db.execute(db_single_station)
             db.commit()
-          
+            # Re-query to get the DbModelStation instance instead of the Insert object
+            db_single_station = db.query(DbModelStation).filter_by(station_id=parsed_stations.station_id).first()
+            if db_single_station is None:
+                raise ValueError(f"Station with id {parsed_stations.station_id} not found or inserted")
 
+        
+        
         # parsed_measurements is a ParsedMeasurementModel instance
         # This loop creates one DbModelPollutant instance for each pollutant
         # with a value and time for the station
@@ -77,16 +91,18 @@ def insert_data_into_db(db: Session, parsed_stations: ParsedStationModel, parsed
             value = getattr(parsed_measurements, name, None)
             
             if value is not None:
-                single_pollutant_measurement = DbModelMeasurement(
+                single_pollutant_measurement = insert(DbModelMeasurement).values(
                     station_id = db_single_station.id, # from db_single_station object
                     pollutant_id = single_pollutant.id,
                     value = value,
                     measured_at = measurement_time
+                ).on_conflict_do_nothing(
+                    index_elements=['station_id', 'pollutant_id', 'measured_at']
                 )
 
-                db.add(single_pollutant_measurement)
+                db.execute(single_pollutant_measurement)
                 
-        # should not commit/close here; caller manages the session lifecycle
+        # should not commit here 
      
     except Exception as e:
         db.rollback()
