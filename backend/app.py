@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 import os
 from flask import Flask, Response
 from flask.json.provider import DefaultJSONProvider
@@ -227,6 +228,17 @@ def create_app() -> Flask:
 #=======================================================================================
 # main block
 app = create_app()
+
+@app.route('/api/status')
+def status():
+    return {
+        "project": "ARSO air quality monitoring app",
+        "current_time": datetime.now().isoformat(),
+        "note": "For testting purposes only. App is running! "
+    }
+
+
+
 
 if __name__ == '__main__':    
     app.run(debug=False,host="0.0.0.0", port=5000)
