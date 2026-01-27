@@ -46,6 +46,11 @@ jobs:
           push: true
           tags: ghcr.io/miranas/air-pollution-app:latest
           no-cache: true
-    
-   
 
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy to Railway
+        run: railway redeploy --service "air-pollution-app" -y
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
