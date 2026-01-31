@@ -18,8 +18,9 @@ services:
     image: redis:7.2-alpine
     container_name: air_pollution_app__redis
     restart: always
-    ports:
-      - "6379:6379"    
+    expose:
+      - "6379"
+      
 
   prometheus:
     image: prom/prometheus:v2.51.2
@@ -43,10 +44,22 @@ services:
       - "3000:3000"
     volumes:
       - grafana_data:/var/lib/grafana
+  
+  portainer:
+    image: portainer/portainer-ce:2.21.5
+    container_name: air_pollution_app_portainer
+    restart: always
+    ports:
+      - "9443:9443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+
 # create volumes
 volumes:
   prometheus_data:
   grafana_data:
+  portainer_data:
 
 
 

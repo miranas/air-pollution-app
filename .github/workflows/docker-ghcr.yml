@@ -1,4 +1,4 @@
-name: Build and Push Docker image to GHCR
+name: Build and Push Docker image to GHCR and Deploy to Railway and Hetzner
 
 on:
   push:
@@ -11,7 +11,6 @@ permissions:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -37,20 +36,54 @@ jobs:
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN}}
-    
+          password: ${{ secrets.GITHUB_TOKEN}}      
+      
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           push: true
-          tags: ghcr.io/miranas/air-pollution-app:latest
+          tags: ghcr.io/miranas/air_pollution_app:latest
           no-cache: true
 
+      
+  
+  deploy_railway:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
       - name: Install Railway CLI
         run: npm install -g @railway/cli
-
       - name: Deploy to Railway
-        run: railway redeploy --service "air-pollution-app" -y
+        run: railway redeploy --service "deploy-ARSO-docker-image" -y
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+
+  deploy_Hetzner:    
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Copy config files to Hetzner
+        uses: appleboy/scp-action@master
+        with:          
+          host: ${{ secrets.HETZNER_HOST }}
+          username: root
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          source: "docker-compose.yml, prometheus.yml"
+          target: "/root/projects/arso"
+          rm: false
+
+      - name: Deploy to Hetzner via SSH
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.HETZNER_HOST }}
+          username: root
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          script: |
+            cd /root/projects/arso
+            # 
+            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+            docker compose pull
+            docker compose up -d --remove-orphans
+            docker image prune

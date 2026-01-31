@@ -1,7 +1,7 @@
 import time
 from datetime import datetime
 import os
-from flask import Flask, Response
+from flask import Flask, Response, request
 from flask.json.provider import DefaultJSONProvider
 import logging
 from backend.network.arso_client import fetch_arso_xml
@@ -179,6 +179,15 @@ def create_app() -> Flask:
 
     # Global UTF-8 header - aplies to all routes automatically Built-in Flask hook -runs after every request
     def _after_request(response: Response) -> Response:
+
+        allowed_origins = os.environ.get('CORS_ORIGINS','http://localhost:5173').split(',') 
+
+        origin = request.headers.get('Origin')
+
+        if origin in allowed_origins:
+            response.headers['Access-Control-Allow-Origin'] = origin
+        elif '*' in allowed_origins:
+            response.headers['Access-Control-Allow-Origin'] = '*'
 
         # only set JSON headers for JSON responses
         if response.content_type and 'application/json' in response.content_type:
