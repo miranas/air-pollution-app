@@ -71,7 +71,7 @@ jobs:
           host: ${{ secrets.HETZNER_HOST }}
           username: root
           key: ${{ secrets.HETZNER_SSH_KEY }}
-          source: "docker-compose.yml,prometheus.yml,Dockerfile.streamlit,requirements.txt"
+          source: "docker-compose.yml,prometheus.yml,Dockerfile.streamlit,requirements.txt, fontend/streamlit_app.py"
           target: "/root/projects/arso"
           strip_components: 0
           rm: false
