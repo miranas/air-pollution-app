@@ -2,7 +2,7 @@ import streamlit
 import requests
 from typing import Dict, Any
 
-BACKEND_URL = "http://46.225.15.6/api/latest:8501"
+BACKEND_URL = "http://46.225.15.6/api/latest"
 
 streamlit.title("Slovenia air quality measurements")
 
