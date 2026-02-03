@@ -1,5 +1,6 @@
 from flask import  Blueprint, Response, jsonify
-from app import cache
+from backend.app import cache
+
 
 api_latest_bp = Blueprint('api_latest', __name__)
 
