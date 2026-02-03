@@ -15,6 +15,8 @@ def get_latest_data() -> Dict[str, Any]:
     return {"error": "No data"}
 
 data = get_latest_data()
+streamlit.write(data)
+
 if not data:
     streamlit.error("No data available")
 else:
