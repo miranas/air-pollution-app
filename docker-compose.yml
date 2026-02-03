@@ -55,6 +55,16 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data
 
+  streamlit:
+    build:
+      context:
+      dockerfile: dockerfile.streamlit
+    container_name: air_pollution_app_streamlit
+    ports:
+      - "8501:8501"
+    depends_on:
+      - backend
+
 # create volumes
 volumes:
   prometheus_data:

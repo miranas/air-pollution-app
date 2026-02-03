@@ -9,17 +9,23 @@ from backend.parsers.station_parser import parse_stations_from_xml
 from backend.parsers.measurments_parser import parse_measurements_from_xml
 from backend.parsers.stations_and_measurments_merger import merge_stations_and_measurements
 from backend.parsers.insert_data import insert_all_data
-from typing import Any, List, Tuple
+from typing import Any, List, Tuple, cast
 from flask_caching import Cache
 logging.basicConfig(level=logging.INFO)
 from  apscheduler.schedulers.background import BackgroundScheduler  # type: ignore[reportMissingTypeStubs]
 from redis import Redis
 from redis.exceptions import ConnectionError
 from prometheus_flask_exporter import PrometheusMetrics
-
+import json
 
 # Initialize cache instance
 cache = Cache()
+
+# Serialization function
+def to_serializable(obj: Any):
+    if hasattr(obj, "__dict__"):
+        return obj.__dict__
+    return str(obj)
 
 def update_data():
     # Fetch XML from ARSO
@@ -51,10 +57,11 @@ def update_data():
         # summary log
         logging.info(f"Merged data for {len(merged_data)} stations")
 
+        # key: value iteration through merged_data as station_id as key and station_info as value
         for station_id, station_info in merged_data.items():
             logging.debug(f"Station ID: {station_id}")
-            logging.debug(f"  Name: {station_info['info'].station_name}")
-            logging.debug(f"  Measurements ({len(station_info['measurements_list'])}):")
+            logging.debug(f"Name: {station_info['info'].station_name}")
+            logging.debug(f"Measurements ({len(station_info['measurements_list'])}):")
 
             for m in station_info['measurements_list'][:23]:
                 logging.debug(f"    {m}")
@@ -80,7 +87,7 @@ def update_data():
 
         # put the merged data into the cache if available
         try:
-            cache.set('latest_merged_data', merged_data)# type: ignore
+            cast(Any, cache).set('latest_merged_data', json.dumps(merged_data, default=to_serializable))
         except Exception:
             logging.exception("Failed to update cache for latest_merged_data")
 
@@ -145,17 +152,14 @@ def create_app() -> Flask:
     app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True  # Better JSON formatting
     app.config['JSON_SORT_KEYS'] = False  # Keep original order of JSON keys
     
-    """
+    
     # Import blueprints
-    from backend.routes.station_routes import station_bp
-    from backend.routes.health_routes import health_bp
-    from backend.routes.debug_routes import debug_bp
-
+    from backend.routes.api_latest import api_latest_bp
+    
     # Register blueprints
-    app.register_blueprint(station_bp)
-    app.register_blueprint(health_bp)
-    app.register_blueprint(debug_bp)
-    """
+    app.register_blueprint(api_latest_bp)
+   
+    
     
     # Custom JSON provider to ensure UTF-8 encoding   
     class UTF8JsonProvider(DefaultJSONProvider):
@@ -245,8 +249,6 @@ def status():
         "current_time": datetime.now().isoformat(),
         "note": "For testting purposes only. App is running! "
     }
-
-
 
 
 if __name__ == '__main__':    

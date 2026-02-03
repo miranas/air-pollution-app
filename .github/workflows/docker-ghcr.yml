@@ -45,7 +45,6 @@ jobs:
           push: true
           tags: ghcr.io/miranas/air_pollution_app:latest
           no-cache: true
-
       
   
   deploy_railway:
@@ -58,6 +57,7 @@ jobs:
         run: railway redeploy --service "deploy-ARSO-docker-image" -y
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          
 
   deploy_Hetzner:    
     needs: build-and-push
