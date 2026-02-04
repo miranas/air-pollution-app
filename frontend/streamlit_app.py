@@ -1,13 +1,14 @@
 import streamlit 
 import requests
 from typing import Dict, Any
+import os
 
-BACKEND_URL = "http://46.225.15.6:5000/api/latest"
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:5000/api/latest")
 
-streamlit.title("Slovenia air quality measurements")
+streamlit.title("Zrakomer")
 
 # Fetch data from the backend API
-streamlit.cache_data.clear()
+#streamlit.cache_data.clear()
 @streamlit.cache_data(ttl=300)
 def get_latest_data() -> Dict[str, Any]:
     response = requests.get(BACKEND_URL)

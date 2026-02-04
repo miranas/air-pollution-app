@@ -1,5 +1,4 @@
 name: Build and Push Docker image to GHCR and Deploy to Railway and Hetzner
-
 on:
   push:
     branches: [ main ]  # or your default branch
@@ -45,6 +44,16 @@ jobs:
           push: true
           tags: ghcr.io/miranas/air_pollution_app:latest
           no-cache: true
+
+      - name: Build and push Frontend
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.streamlit
+          push: true
+          tags: ghcr.io/miranas/air_pollution_app_ui:latest
+          no-cache: true
+
       
   
   deploy_railway:

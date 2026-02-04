@@ -9,9 +9,9 @@ def get_latest_data():
     latest_data = cache.get('latest_merged_data')
     if latest_data:
         if isinstance(latest_data,str):
-            # If the latst data is string returnas JSON
+            # If the latest data is string, returnas JSON
             return Response(latest_data, mimetype='application/json')
-        # if it's a dict/list jsonify it
+        # if latest_data is dict/list jsonify it
         return jsonify(latest_data)
     return jsonify({"error": "No data"})
 
