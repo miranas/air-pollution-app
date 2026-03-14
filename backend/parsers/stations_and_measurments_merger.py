@@ -33,16 +33,14 @@ def merge_stations_and_measurements(
         # skip entries with no station_id to satisfy type checker and avoid None keys
         if single_station.station_id is None:
             continue
-
         # For single_station in stations list which is made of ParsedStationModel objects
         # create a dictionary named merged_data 
         # where each key is a station_id from ParsedStationModel object,
         # value is a inner dictionary with keys "info"
-        # and "measurements" fromParsedStationModel object
+        # and "measurements" from ParsedStationModel object
         # within measurements empty list
         merged_data[single_station.station_id] = {
             "info": single_station,
-
             # Initialize measurements as an empty list
             "measurements_list": []
         }
@@ -52,8 +50,6 @@ def merge_stations_and_measurements(
     # check if the station_id already exists in merged_data dictionary    
     for single_measurement in measurements: 
         if single_measurement.station_id in merged_data:
-
-
             # access the merged_data dictionary with ParsedStationModel objects
             # get the station_id from every Measurement object [single_measurement.station_id]
             # access the list of measurements for that station ["measurements_list"]

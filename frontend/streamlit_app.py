@@ -1,36 +1,16 @@
-import streamlit 
-import requests
-from typing import Dict, Any
-import os
+import streamlit as st
+from data_handler import get_raw_data, json_to_dataframe
 
-BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:5000/api/latest")
+st.title("Zrakomer")
 
-streamlit.title("Zrakomer")
+# Get data from backend
+json_data = get_raw_data()
+st.write("DEBUG: Podatki iz backend-a:")
+st.json(json_data)
 
-# Fetch data from the backend API
-#streamlit.cache_data.clear()
-@streamlit.cache_data(ttl=300)
-def get_latest_data() -> Dict[str, Any]:
-    response = requests.get(BACKEND_URL)
-    if response.status_code == 200:
-        return response.json()
-    return {"error": "No data"}
-
-data = get_latest_data()
-streamlit.write(data)
-
-if not data:
-    streamlit.error("No data available")
+# Convert to DataFrame and display
+df = json_to_dataframe(json_data)
+if df.empty:
+    st.error("Ni podatkov za prikaz.")
 else:
-    station_ids= list(data.keys())
-    selected_station = streamlit.selectbox("Select a station", station_ids)
-
-    station_info = data[selected_station]["info"]
-    measurements = data[selected_station]["measurements_list"]
-
-    streamlit.subheader(f"Merilno mesto: {station_info.get('station_name', selected_station)}")
-    streamlit.write("Merilna postaja", station_info)
-    streamlit.write("Podatki o zraku", measurements)
-                        
-
-
+    st.dataframe(df)
