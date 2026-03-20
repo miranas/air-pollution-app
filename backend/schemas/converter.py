@@ -1,13 +1,12 @@
 from backend.schemas.pydantic_models import PydanticStationInfoModel, PydanticPollutantModel, PydanticMeasurementsModel
-from backend.parsers.models.measurement_model import ParsedMeasurementModel
-from backend.parsers.models.station_models import ParsedStationModel
-from typing import Dict, List, Any, DefaultDict
 from backend.parsers.station_parser import parse_stations_from_xml
 from backend.parsers.measurments_parser import parse_measurements_from_xml
+from backend.parsers.stations_and_measurments_merger import merge_stations_and_measurements
 from backend.network.arso_client import fetch_arso_xml
-
-from collections import defaultdict
+from typing import Dict, List
 import json
+
+"""Convert parsed data models to Pydantic models."""
 
 
 def convert_parsed_data_to_pydantic() -> Dict[str, PydanticMeasurementsModel]:
@@ -21,13 +20,9 @@ def convert_parsed_data_to_pydantic() -> Dict[str, PydanticMeasurementsModel]:
     # Get stations 
     stations_parse_result = parse_stations_from_xml(xml_content)
     if not stations_parse_result:
-        raise ValueError("Failed to parse station data from XML.")      
-    
-
+        raise ValueError("Failed to parse station data from XML.") 
     stations = stations_parse_result.data # List of ParsedStationModel objects
-    # Create a dictionary with stations
-    stations_dict: Dict[str, ParsedStationModel] = {s.station_id: s for s in stations if s.station_id is not None}
-    
+  
    
     # Get measurements
     measurements_parse_result = parse_measurements_from_xml(xml_content)
@@ -35,26 +30,23 @@ def convert_parsed_data_to_pydantic() -> Dict[str, PydanticMeasurementsModel]:
         raise ValueError(" Failed to parse measurement data from XML.")
     measurements = measurements_parse_result.data # List of ParsedMeasurementModel objects
     
-    # Create a dictionary to group measurements by station_id
-    measurements_dict: DefaultDict[str, List[ParsedMeasurementModel]] = defaultdict(list)
-    for m in measurements:
-        if m.station_id is None:
-            # skip measurements without a station id
-            continue
-        measurements_dict[m.station_id].append(m)
 
+    # Merge stations and measurements
+    merged = merge_stations_and_measurements(stations, measurements)   
+        
 
+    # Create Pydantic models for each station and its measurements
     pydantic_models: Dict[str, PydanticMeasurementsModel] = {}
-    for station_id, station_obj in stations_dict.items():
+    for station_id, merged_data in merged.items():
         
         # Convert station info to Pydantic model
-        station_info = PydanticStationInfoModel(**station_obj.__dict__)  
+        station_info = PydanticStationInfoModel(**merged_data["info"].__dict__)  
         
-        # Create a list to collect pollutant measurements for this station
+        # Create a list to collect pollutant measurements for each pollutant for each station
         station_measurements: List[PydanticPollutantModel] = []
 
         # Iterate over measurements for the station (use .get to avoid KeyError)
-        for m in measurements_dict.get(station_id, []):
+        for m in merged_data["measurements_list"]:
             # require a valid measurement timestamp before creating a PydanticPollutantModel
             if m.time_to is None:
                 continue
