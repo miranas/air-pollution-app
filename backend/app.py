@@ -64,7 +64,7 @@ def create_app() -> Flask:
     
     try:
         # Import the blueprint lazily so create_app can still function if the module is missing
-        from backend.api.latest import api_latest_bp  # type: ignore
+        from backend.routes.api_latest import api_latest_bp  # type: ignore
         from typing import cast
         from flask import Blueprint
         # Cast to Blueprint so static type checkers understand the argument type
@@ -110,7 +110,8 @@ def create_app() -> Flask:
 
 app = create_app()
 
-print(f"Redis client type: {type(app.extensions['redis_client']).__name__}")
+redis_client = app.extensions.get('redis_client')
+print(f"Redis client type: {type(redis_client).__name__ if redis_client is not None else 'None'}")
 print(f"Cache type: {type(cache).__name__}")
    
 

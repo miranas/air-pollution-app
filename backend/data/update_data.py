@@ -2,7 +2,6 @@ from backend.network.arso_client import fetch_arso_xml
 from backend.parsers.station_parser import parse_stations_from_xml
 from backend.parsers.measurments_parser import parse_measurements_from_xml
 from backend.parsers.stations_and_measurments_merger import merge_stations_and_measurements
-from backend.parsers.insert_data import insert_all_data
 from backend.utils.serialization import to_serializable
 from typing import Any, List, Tuple, cast
 import json
@@ -90,6 +89,7 @@ def update_data():
 
         # Insert into storage
         try:
+            from backend.parsers.insert_data import insert_all_data
             insert_all_data(all_parsed_data)
         except Exception as e:
             logging.exception(f"Failed to insert data: {e}")

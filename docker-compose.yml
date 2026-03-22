@@ -1,8 +1,9 @@
-version: '3.8'
-
 services:
   backend:
-    image: ghcr.io/miranas/air_pollution_app:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: air_pollution_app_backend:local
     container_name: air_pollution_app
     restart: always
     ports: 
@@ -56,14 +57,17 @@ services:
       - portainer_data:/data
 
   frontend:
-    image: ghcr.io/miranas/air_pollution_app_ui:latest
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    image: air_pollution_app_frontend:local
     restart: always
     ports:
       - "8501:8501"
     env_file:
       - .env
     environment:
-      - BACKEND_URL=${BACKEND_URL}
+      - BACKEND_URL=${BACKEND_URL:-http://backend:5000/api/latest}
     depends_on:
       - backend
     

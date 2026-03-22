@@ -9,15 +9,22 @@ api_latest_bp = Blueprint('api_latest', __name__)
 @api_latest_bp.route('/api/latest')
 def get_latest_data():  
     redis_client = current_app.extensions.get('redis_client')
-    if redis_client is None:
-        current_app.logger.error("Redis client not configured in current_app.extensions")
-        return jsonify({"error": "Redis client not configured"}), 503
+    latest_data = None
 
-    try:
-        latest_data = redis_client.get('latest_merged_data')
-    except Exception as e:
-        current_app.logger.exception(f"Failed to get latest_merged_data from redis: {e}")
-        return jsonify({"error": "Failed to retrieve data"}), 500
+    if redis_client is not None:
+        try:
+            latest_data = redis_client.get('latest_merged_data')
+        except Exception as e:
+            current_app.logger.exception(f"Failed to get latest_merged_data from redis: {e}")
+
+    # Fallback to Flask-Caching backend (SimpleCache when Redis is unavailable)
+    if latest_data is None:
+        cache_ext = current_app.extensions.get('cache')
+        if cache_ext and hasattr(cache_ext, 'cache') and hasattr(cache_ext.cache, 'get'):
+            try:
+                latest_data = cache_ext.cache.get('latest_merged_data')
+            except Exception as e:
+                current_app.logger.exception(f"Failed to get latest_merged_data from cache: {e}")
 
     print(f"DEBUG latest_data: type={type(latest_data).__name__} value={latest_data!r}")
     if latest_data:
