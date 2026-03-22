@@ -80,7 +80,7 @@ jobs:
           host: ${{ secrets.HETZNER_HOST }}
           username: root
           key: ${{ secrets.HETZNER_SSH_KEY }}
-          source: "docker-compose.yml,prometheus.yml,Dockerfile.streamlit,requirements.txt,frontend/streamlit_app.py"
+          source: "docker-compose.yml,prometheus.yml,Dockerfile.streamlit,requirements.txt,frontend/*.py"
           target: "/root/projects/arso"
           strip_components: 0
           rm: false
@@ -97,5 +97,5 @@ jobs:
             echo ${{ secrets.HETZNER_GHCR_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
             docker compose pull
-            docker compose up -d --remove-orphans
-            docker image prune
+            docker compose up -d --build --force-recreate --remove-orphans frontend
+            docker image prune -f
