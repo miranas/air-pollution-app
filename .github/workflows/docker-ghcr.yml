@@ -93,9 +93,18 @@ jobs:
           key: ${{ secrets.HETZNER_SSH_KEY }}
           script: |
             cd /root/projects/arso
-            # 
+            export APP_COMMIT_SHA=${{ github.sha }}
+
             echo ${{ secrets.HETZNER_GHCR_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
             docker compose pull
             docker compose up -d --build --force-recreate --remove-orphans frontend
+
+            echo "--- compose ps ---"
+            docker compose ps
+            echo "--- frontend env marker ---"
+            docker compose exec -T frontend sh -lc 'echo APP_COMMIT_SHA=$APP_COMMIT_SHA'
+            echo "--- frontend app checksum ---"
+            docker compose exec -T frontend sh -lc 'sha256sum /app/frontend/streamlit_app.py'
+
             docker image prune -f
