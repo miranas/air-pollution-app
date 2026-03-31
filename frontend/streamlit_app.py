@@ -91,7 +91,7 @@ st.markdown(
                 <h1 class="hero-title">Zrakomer</h1>
                 <p class="hero-subtitle">Pregled kakovosti zraka po merilnih postajah v Sloveniji v realnem času</p>
             </div>
-            <span style="font-size:2.2rem; opacity:0.30; flex-shrink:0;">🗺️</span>
+            <span style="font-size:4.5rem; line-height:1; flex-shrink:0;">🌍</span>
         </div>
         """,
         unsafe_allow_html=True,
@@ -208,11 +208,13 @@ else:
         for col in poll_display_cols:
             overview_df[col] = pd.to_numeric(overview_df[col], errors="coerce")
         fmt = {c: (lambda x, _c=c: f"{x:.1f}" if pd.notna(x) else "Ni podatka") for c in poll_display_cols}
+        overview_df.insert(0, "Rang", range(1, len(overview_df) + 1))
         styled = (
             overview_df.style
             .hide(axis="index")
             .format(fmt, na_rep="Ni podatka")
-            .applymap(lambda _: "background-color: #edf2f7; color: #1a3660; font-weight: 500;", subset=["Postaja"])
+            .set_properties(subset=["Rang"], **{"text-align": "center", "color": "#5b6770"})
+            .applymap(lambda _: "background-color: #d6f0ee; color: #0a5c6e; font-weight: 600;", subset=["Postaja"])
         )
         for col in poll_display_cols:
             styled = styled.applymap(lambda v, _c=col: cell_color(v, _c), subset=[col])
@@ -233,7 +235,7 @@ else:
             .set_properties(subset=["Postaja"], **{"text-align": "left"})
             .set_properties(subset=[pollutant], **{"text-align": "center", "font-weight": "600"})
             .set_properties(subset=["Stanje"], **{"text-align": "center", "font-weight": "600"})
-            .applymap(lambda _: "background-color: #edf2f7; color: #1a3660; font-weight: 500;", subset=["Postaja"])
+            .applymap(lambda _: "background-color: #d6f0ee; color: #0a5c6e; font-weight: 600;", subset=["Postaja"])
             .format({pollutant: lambda x: f"{x:.1f}" if pd.notna(x) else "Ni podatka"}, na_rep="Ni podatka")
             .applymap(lambda v: cell_color(v, pollutant), subset=[pollutant])
             .applymap(
