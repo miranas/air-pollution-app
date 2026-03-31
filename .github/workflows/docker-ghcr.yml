@@ -101,10 +101,15 @@ jobs:
             echo ${{ secrets.HETZNER_GHCR_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
             docker compose pull
-            docker compose up -d --build --force-recreate --remove-orphans frontend
+            docker compose up -d --build --force-recreate --remove-orphans backend frontend redis
 
             echo "--- compose ps ---"
             docker compose ps
+            echo "--- listening ports (5000/8501) ---"
+            ss -tulpen | grep -E ':5000|:8501' || true
+            echo "--- local health checks ---"
+            curl -sS http://127.0.0.1:5000/api/status || true
+            curl -sS http://127.0.0.1:8501/ | head -n 20 || true
             echo "--- frontend env marker ---"
             docker compose exec -T frontend sh -lc 'echo APP_COMMIT_SHA=$APP_COMMIT_SHA'
             echo "--- frontend app checksum ---"
