@@ -108,8 +108,16 @@ jobs:
             echo "--- listening ports ---"
             ss -tulpen | grep -E ':80|:5000|:8501' || true
             echo "--- local health checks ---"
-            curl -sS http://127.0.0.1/api/status || true
-            curl -sS http://127.0.0.1/ | head -n 5 || true
+            curl -fsS http://127.0.0.1/api/status >/tmp/api_status.json
+            curl -fsS http://127.0.0.1/ >/tmp/root_page.html
+            echo "API status sample:"
+            head -n 5 /tmp/api_status.json || true
+            echo "Root page sample:"
+            head -n 5 /tmp/root_page.html || true
+
+            # Fail deploy if proxy routing is not correct.
+            grep -qi "streamlit" /tmp/root_page.html || (echo "ERROR: Root page is not served by Streamlit via nginx" && docker compose logs --tail=120 nginx frontend backend && exit 1)
+            grep -qi "project" /tmp/api_status.json || (echo "ERROR: /api/status did not return backend JSON" && docker compose logs --tail=120 nginx frontend backend && exit 1)
             echo "--- frontend env marker ---"
             docker compose exec -T frontend sh -lc 'echo APP_COMMIT_SHA=$APP_COMMIT_SHA'
             echo "--- frontend app checksum ---"
