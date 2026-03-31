@@ -217,6 +217,7 @@ else:
         if pollutant in ranking_df.columns:
             ranking_df = ranking_df.sort_values(by=pollutant, ascending=False, na_position="last")
         compact_df = ranking_df[["Postaja", pollutant]].copy()
+        compact_df.insert(0, "Rang", range(1, len(compact_df) + 1))
         compact_df[pollutant] = pd.to_numeric(compact_df[pollutant], errors="coerce")
         compact_df["Stanje"] = compact_df[pollutant].apply(lambda x: state_label(x, pollutant))
 
