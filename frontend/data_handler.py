@@ -67,16 +67,6 @@ def json_to_dataframe(json_data: Dict[str,Any]) -> pd.DataFrame:
     return df
 
 
-json_data = get_raw_data()
-df = json_to_dataframe(json_data)
-
-
-print(type(json_data))
-print(json_data)
-
-
-
-
 """
 Pythonic way
 
