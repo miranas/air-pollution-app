@@ -85,9 +85,13 @@ st.markdown(
 
 st.markdown(
         f"""
-        <div class="hero-card">
-            <h1 class="hero-title">Zrakomer</h1>
-            <p class="hero-subtitle">Pregled kakovosti zraka po merilnih postajah v realnem času</p>
+        <div class="hero-card" style="display:flex; align-items:center; gap:1.4rem;">
+            <span style="font-size:3.6rem; line-height:1; flex-shrink:0;">🇸🇮</span>
+            <div style="flex:1">
+                <h1 class="hero-title">Zrakomer</h1>
+                <p class="hero-subtitle">Pregled kakovosti zraka po merilnih postajah v Sloveniji v realnem času</p>
+            </div>
+            <span style="font-size:2.2rem; opacity:0.30; flex-shrink:0;">🗺️</span>
         </div>
         """,
         unsafe_allow_html=True,
@@ -133,7 +137,7 @@ else:
             index=0,
         )
     with ctrl_right:
-        use_who = st.checkbox("WHO 2021 pragovi", value=False)
+        use_who = st.checkbox("Priporočila Svetovne zdravstvene organizacije (WHO) 2021", value=False)
 
     active_thresholds = WHO_THRESHOLDS if use_who else THRESHOLDS
 
@@ -178,12 +182,7 @@ else:
     # ── Metrics ──────────────────────────────────────────────────
     stations_count = len(df)
     if pollutant == "Vse postaje":
-        ref = "PM10" if "PM10" in df.columns else None
-        c1, c2 = st.columns(2)
-        c1.metric("Število postaj", stations_count)
-        if ref:
-            avg_ref = df[ref].mean()
-            c2.metric(f"Povp. {ref}", f"{avg_ref:.1f}" if pd.notna(avg_ref) else "Ni podatka")
+        st.metric("Število postaj", stations_count)
     else:
         series = df[pollutant] if pollutant in df.columns else pd.Series(dtype=float)
         avg_val = float(series.mean()) if series.notna().any() else None
@@ -209,7 +208,12 @@ else:
         for col in poll_display_cols:
             overview_df[col] = pd.to_numeric(overview_df[col], errors="coerce")
         fmt = {c: (lambda x, _c=c: f"{x:.1f}" if pd.notna(x) else "Ni podatka") for c in poll_display_cols}
-        styled = overview_df.style.hide(axis="index").format(fmt, na_rep="Ni podatka")
+        styled = (
+            overview_df.style
+            .hide(axis="index")
+            .format(fmt, na_rep="Ni podatka")
+            .applymap(lambda _: "background-color: #edf2f7; color: #1a3660; font-weight: 500;", subset=["Postaja"])
+        )
         for col in poll_display_cols:
             styled = styled.applymap(lambda v, _c=col: cell_color(v, _c), subset=[col])
         st.table(styled)
@@ -225,9 +229,11 @@ else:
             compact_df
             .style
             .hide(axis="index")
+            .set_properties(subset=["Rang"], **{"text-align": "center", "color": "#5b6770"})
             .set_properties(subset=["Postaja"], **{"text-align": "left"})
             .set_properties(subset=[pollutant], **{"text-align": "center", "font-weight": "600"})
             .set_properties(subset=["Stanje"], **{"text-align": "center", "font-weight": "600"})
+            .applymap(lambda _: "background-color: #edf2f7; color: #1a3660; font-weight: 500;", subset=["Postaja"])
             .format({pollutant: lambda x: f"{x:.1f}" if pd.notna(x) else "Ni podatka"}, na_rep="Ni podatka")
             .applymap(lambda v: cell_color(v, pollutant), subset=[pollutant])
             .applymap(
