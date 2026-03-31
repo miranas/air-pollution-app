@@ -122,15 +122,16 @@ else:
         return "Slabo"
 
     def pollutant_color(value: float | None, pollutant_name: str) -> str:
-        if pd.isna(value):
+        numeric_value = pd.to_numeric(value, errors="coerce")
+        if pd.isna(numeric_value):
             return "background-color: #eef1f4; color: #5b6770;"
         key = pollutant_key_map.get(pollutant_name)
         limits = THRESHOLDS.get(key, []) if key else []
         if len(limits) < 2:
             return ""
-        if value <= limits[0]:
+        if numeric_value <= limits[0]:
             return "background-color: #d9f5e6; color: #0f5132;"
-        if value <= limits[1]:
+        if numeric_value <= limits[1]:
             return "background-color: #fff4d6; color: #7a5d00;"
         return "background-color: #ffe1df; color: #8a1f1f;"
 
@@ -160,9 +161,7 @@ else:
     # Keep the table compact to avoid horizontal scrolling.
     compact_df = ranking_df[["Postaja", pollutant, f"Stanje {pollutant}"]].copy()
     compact_df.insert(0, "Rang", range(1, len(compact_df) + 1))
-    compact_df[pollutant] = compact_df[pollutant].apply(
-        lambda x: f"{float(x):.1f}" if pd.notna(x) else "Ni podatka"
-    )
+    compact_df[pollutant] = pd.to_numeric(compact_df[pollutant], errors="coerce")
 
     styled_table = (
         compact_df
@@ -172,6 +171,7 @@ else:
         .set_properties(subset=["Postaja"], **{"text-align": "left"})
         .set_properties(subset=[pollutant], **{"text-align": "center", "font-weight": "600"})
         .set_properties(subset=[f"Stanje {pollutant}"], **{"text-align": "center", "font-weight": "600"})
+        .format({pollutant: lambda x: f"{x:.1f}" if pd.notna(x) else "Ni podatka"}, na_rep="Ni podatka")
         .applymap(lambda v: pollutant_color(v, pollutant), subset=[pollutant])
         .applymap(
             lambda s: "background-color: #d9f5e6; color: #0f5132;" if s == "Dobro"
