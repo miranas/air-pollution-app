@@ -83,7 +83,7 @@ jobs:
           host: ${{ secrets.HETZNER_HOST }}
           username: root
           key: ${{ secrets.HETZNER_SSH_KEY }}
-          source: "docker-compose.yml,prometheus.yml,nginx.conf,Dockerfile.streamlit,requirements.txt,frontend/*.py"
+          source: "docker-compose.yml,prometheus.yml,nginx.conf"
           target: "/root/projects/arso"
           strip_components: 0
           rm: false
@@ -95,13 +95,14 @@ jobs:
           username: root
           key: ${{ secrets.HETZNER_SSH_KEY }}
           script: |
+            set -euo pipefail
             cd /root/projects/arso
             export APP_COMMIT_SHA=${{ github.sha }}
 
             echo ${{ secrets.HETZNER_GHCR_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
             docker compose pull
-            docker compose up -d --build --force-recreate --remove-orphans backend frontend redis nginx
+            docker compose up -d --force-recreate --remove-orphans backend frontend redis nginx
 
             echo "--- compose ps ---"
             docker compose ps

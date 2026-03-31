@@ -12,10 +12,7 @@ services:
       - frontend
 
   backend:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: air_pollution_app_backend:local
+    image: ghcr.io/miranas/air_pollution_app:latest
     container_name: air_pollution_app
     restart: always
     expose:
@@ -69,10 +66,7 @@ services:
       - portainer_data:/data
 
   frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile.streamlit
-    image: air_pollution_app_frontend:local
+    image: ghcr.io/miranas/air_pollution_app_ui:latest
     restart: always
     expose:
       - "8501"
