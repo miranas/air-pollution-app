@@ -1,5 +1,4 @@
 import json
-from urllib import response
 import requests
 import pandas as pd
 from config import BACKEND_URL
@@ -10,31 +9,31 @@ import streamlit
 @streamlit.cache_data(ttl=3600)
 def get_raw_data() -> Dict[str, Any]:
     try:
-        response = requests.get(BACKEND_URL, timeout=5)
-        print("DEBUG status:", response.status_code)
-        print("DEBUG text:", response.text[:200])  # prvih 200 znakov
-        # get json packet of latest fetched and parsed data
-        return response.json()
-    except requests.RequestException:
+        resp = requests.get(BACKEND_URL, timeout=8)
+        resp.raise_for_status()
+        data = resp.json()
+        # Backend can return {"error": "No data"}; treat it as empty dataset.
+        if isinstance(data, dict) and data.get("error"):
+            return {}
+        if isinstance(data, dict):
+            return data
+        return {}
+    except (requests.RequestException, ValueError):
         return {}
     
 
 def json_to_dataframe(json_data: Dict[str,Any]) -> pd.DataFrame:
     if not json_data:
-        print("No valid data received from backend.")
         return pd.DataFrame()  # Return empty DataFrame if no data
     
     # initialize a list to hold the rows
     rows: List[Dict[str, Any]] = []
 
     for key, content in json_data.items():
-        print(f"{key}: {type(content)}")
-
         if isinstance(content, str):
             try:
                 content = json.loads(content)
-            except Exception as e:
-                print(f"Error parsing content for key {key}: {e}")
+            except Exception:
                 continue  # skip this entry if parsing fails
         
         if content.get('measurements_list') and len(content['measurements_list']) > 0:

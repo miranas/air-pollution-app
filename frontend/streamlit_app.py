@@ -23,6 +23,15 @@ with st.spinner("Nalagam podatke..."):
 # Convert to DataFrame and display
 df = json_to_dataframe(json_data)
 
+if "last_good_df" not in st.session_state:
+    st.session_state.last_good_df = None
+
+if not df.empty:
+    st.session_state.last_good_df = df.copy()
+elif st.session_state.last_good_df is not None:
+    df = st.session_state.last_good_df
+    st.warning("Backend trenutno ni vrnil novih podatkov. Prikazujem zadnje uspesne podatke.")
+
 if df.empty:
     st.error("Ni podatkov za prikaz. Preveri backend povezavo ali poskusi znova.")
 else:
