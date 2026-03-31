@@ -6,8 +6,7 @@ from typing import Dict, Any, List
 import streamlit
 
 
-@streamlit.cache_data(ttl=3600)
-def get_raw_data() -> Dict[str, Any]:
+def _fetch_raw_data() -> Dict[str, Any]:
     try:
         resp = requests.get(BACKEND_URL, timeout=8)
         resp.raise_for_status()
@@ -20,6 +19,23 @@ def get_raw_data() -> Dict[str, Any]:
         return {}
     except (requests.RequestException, ValueError):
         return {}
+
+
+@streamlit.cache_data(ttl=3600)
+def _get_cached_raw_data() -> Dict[str, Any]:
+    data = _fetch_raw_data()
+    # Never cache empty responses; they would freeze the UI in "No data" state.
+    if not data:
+        raise ValueError("No data to cache")
+    return data
+
+
+def get_raw_data() -> Dict[str, Any]:
+    try:
+        return _get_cached_raw_data()
+    except Exception:
+        # Fallback direct fetch gives a chance to recover immediately after cache miss.
+        return _fetch_raw_data()
     
 
 def json_to_dataframe(json_data: Dict[str,Any]) -> pd.DataFrame:
