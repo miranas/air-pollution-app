@@ -73,7 +73,7 @@ services:
     env_file:
       - .env
     environment:
-      - BACKEND_URL=${BACKEND_URL:-http://backend:5000/api/latest}
+      - BACKEND_URL=http://backend:5000/api/latest
       - APP_COMMIT_SHA=${APP_COMMIT_SHA:-local-dev}
     depends_on:
       - backend

@@ -1,4 +1,4 @@
-name: Build and Push Docker image to GHCR and Deploy to Railway and Hetzner
+name: Build and Push Docker image to GHCR and Deploy to Railway
 on:
   push:
     branches: [ main ]  # or your default branch
@@ -70,73 +70,3 @@ jobs:
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
           
-
-  deploy_Hetzner:    
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v5
-      - name: Copy config files to Hetzner
-        uses: appleboy/scp-action@master
-        with:          
-          host: ${{ secrets.HETZNER_HOST }}
-          username: root
-          key: ${{ secrets.HETZNER_SSH_KEY }}
-          source: "docker-compose.yml,prometheus.yml,nginx.conf"
-          target: "/root/projects/arso"
-          strip_components: 0
-          rm: false
-
-      - name: Deploy to Hetzner via SSH
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.HETZNER_HOST }}
-          username: root
-          key: ${{ secrets.HETZNER_SSH_KEY }}
-          script: |
-            set -euo pipefail
-            cd /root/projects/arso
-            export APP_COMMIT_SHA=${{ github.sha }}
-
-            echo ${{ secrets.HETZNER_GHCR_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-            docker compose pull
-            docker compose up -d --force-recreate --remove-orphans backend frontend redis nginx
-
-            echo "--- compose ps ---"
-            docker compose ps
-            echo "--- listening ports ---"
-            ss -tulpen | grep -E ':80|:5000|:8501' || true
-            echo "--- local health checks ---"
-            curl -fsS http://127.0.0.1/api/status >/tmp/api_status.json
-            curl -fsS http://127.0.0.1/ >/tmp/root_page.html
-            echo "API status sample:"
-            head -n 5 /tmp/api_status.json || true
-            echo "Root page sample:"
-            head -n 5 /tmp/root_page.html || true
-
-            echo "--- api/latest check (with retry) ---"
-            latest_ok=0
-            for i in 1 2 3 4 5; do
-              code=$(curl -sS -o /tmp/api_latest.json -w "%{http_code}" http://127.0.0.1/api/latest || true)
-              echo "attempt ${i}: /api/latest HTTP ${code}"
-              if [ "${code}" = "200" ]; then
-                latest_ok=1
-                break
-              fi
-              sleep 5
-            done
-            echo "api/latest sample:"
-            head -n 5 /tmp/api_latest.json || true
-
-            # Fail deploy if proxy routing is not correct.
-            grep -qi "streamlit" /tmp/root_page.html || (echo "ERROR: Root page is not served by Streamlit via nginx" && docker compose logs --tail=120 nginx frontend backend && exit 1)
-            grep -qi "project" /tmp/api_status.json || (echo "ERROR: /api/status did not return backend JSON" && docker compose logs --tail=120 nginx frontend backend && exit 1)
-            [ "${latest_ok}" = "1" ] || (echo "ERROR: /api/latest did not become ready (HTTP 200)" && docker compose logs --tail=180 backend && exit 1)
-            echo "--- frontend env marker ---"
-            docker compose exec -T frontend sh -lc 'echo APP_COMMIT_SHA=$APP_COMMIT_SHA'
-            echo "--- frontend app checksum ---"
-            docker compose exec -T frontend sh -lc 'sha256sum /app/frontend/streamlit_app.py'
-
-            docker image prune -f
