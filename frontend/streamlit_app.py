@@ -174,13 +174,13 @@ else:
     with ctrl_right:
         use_who = st.checkbox("Priporočila Svetovne zdravstvene organizacije (WHO) 2021", value=False)
 
-    sort_station_col, sort_pollutant_col, sort_order_col = st.columns([2, 2, 2])
-    with sort_station_col:
-        station_sort_order = st.selectbox("Razvrsti po imenu postaje", ["A-Z", "Z-A"], index=0)
+    station_names = sorted(df.index.astype(str).tolist())
+
+    filter_station_col, sort_pollutant_col = st.columns([2, 2])
+    with filter_station_col:
+        station_filter = st.selectbox("Filtriraj po postaji", ["Vse postaje"] + station_names, index=0)
     with sort_pollutant_col:
-        pollutant_sort_key = st.selectbox("Razvrsti po onesnažilu", ["Brez"] + pollutant_options[1:], index=0)
-    with sort_order_col:
-        pollutant_sort_order = st.selectbox("Smer razvrščanja onesnažila", ["Padajoče", "Naraščajoče"], index=0)
+        pollutant_sort_key = st.selectbox("Razvrsti po onesnažilu (padajoče)", ["Brez"] + pollutant_options[1:], index=0)
 
     active_thresholds = WHO_THRESHOLDS if use_who else THRESHOLDS
 
@@ -246,14 +246,16 @@ else:
     ranking_df["Postaja"] = ranking_df["Postaja"].astype(str)
     poll_display_cols = [c for c in ["PM10", "PM2.5", "O3", "NO2", "SO2", "CO", "BENZEN"] if c in ranking_df.columns]
 
-    station_ascending = station_sort_order == "A-Z"
-    ranking_df = ranking_df.sort_values(by="Postaja", ascending=station_ascending, kind="stable")
+    if station_filter != "Vse postaje":
+        ranking_df = ranking_df[ranking_df["Postaja"] == station_filter]
+
+    ranking_df = ranking_df.sort_values(by="Postaja", ascending=True, kind="stable")
 
     if pollutant_sort_key != "Brez" and pollutant_sort_key in ranking_df.columns:
         ranking_df[pollutant_sort_key] = pd.to_numeric(ranking_df[pollutant_sort_key], errors="coerce")
         ranking_df = ranking_df.sort_values(
             by=[pollutant_sort_key, "Postaja"],
-            ascending=[pollutant_sort_order == "Naraščajoče", station_ascending],
+            ascending=[False, True],
             na_position="last",
             kind="stable",
         )
@@ -270,11 +272,11 @@ else:
             overview_df.style
             .hide(axis="index")
             .format(fmt, na_rep="Ni podatka")
-            .applymap(lambda _: "background-color: #00aa96; color: white; font-weight: 700; text-align: center;", subset=["Rang"])
-            .applymap(lambda _: "background-color: #0e7490; color: white; font-weight: 700;", subset=["Postaja"])
+            .map(lambda _: "background-color: #00aa96; color: white; font-weight: 700; text-align: center;", subset=["Rang"])
+            .map(lambda _: "background-color: #0e7490; color: white; font-weight: 700;", subset=["Postaja"])
         )
         for col in poll_display_cols:
-            styled = styled.applymap(lambda v, _c=col: cell_color(v, _c), subset=[col])
+            styled = styled.map(lambda v, _c=col: cell_color(v, _c), subset=[col])
         st.dataframe(styled, use_container_width=True, height=520, hide_index=True)
     else:
         if pollutant in ranking_df.columns and pollutant_sort_key == "Brez":
@@ -289,14 +291,14 @@ else:
             compact_df
             .style
             .hide(axis="index")
-            .applymap(lambda _: "background-color: #00aa96; color: white; font-weight: 700; text-align: center;", subset=["Rang"])
+            .map(lambda _: "background-color: #00aa96; color: white; font-weight: 700; text-align: center;", subset=["Rang"])
             .set_properties(subset=["Postaja"], **{"text-align": "left"})
             .set_properties(subset=[pollutant], **{"text-align": "center", "font-weight": "600"})
             .set_properties(subset=["Stanje"], **{"text-align": "center", "font-weight": "600"})
-            .applymap(lambda _: "background-color: #0e7490; color: white; font-weight: 700;", subset=["Postaja"])
+            .map(lambda _: "background-color: #0e7490; color: white; font-weight: 700;", subset=["Postaja"])
             .format({pollutant: lambda x: f"{x:.1f}" if pd.notna(x) else "Ni podatka"}, na_rep="Ni podatka")
-            .applymap(lambda v: cell_color(v, pollutant), subset=[pollutant])
-            .applymap(
+            .map(lambda v: cell_color(v, pollutant), subset=[pollutant])
+            .map(
                 lambda s: "background-color: #d9f5e6; color: #0f5132;" if s == "Dobro"
                 else "background-color: #fff4d6; color: #7a5d00;" if s == "Zmerno"
                 else "background-color: #ffe1df; color: #8a1f1f;" if s == "Slabo"
