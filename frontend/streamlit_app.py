@@ -170,19 +170,19 @@ else:
             df[col] = pd.to_numeric(df[col], errors="coerce")
 
     # ── Controls row ────────────────────────────────────────────
+    station_names = sorted(df.index.astype(str).tolist())
+    station_filter = st.selectbox("Filtriraj po postaji", ["Vse postaje"] + station_names, index=0)
+
     ctrl_left, ctrl_right = st.columns([3, 1])
     with ctrl_left:
-        pollutant_options = ["PM10", "PM2.5", "O3", "NO2", "SO2", "CO", "BENZEN"]
+        pollutant_options = ["", "Vse postaje", "PM10", "PM2.5", "O3", "NO2", "SO2", "CO", "BENZEN"]
         pollutant = st.selectbox(
-            "Razvrsti postaje po onesnažilu (padajoče)",
+            "Razvrsti postaje po onesnažilu",
             options=pollutant_options,
             index=0,
         )
     with ctrl_right:
         use_who = st.checkbox("Priporočila Svetovne zdravstvene organizacije (WHO) 2021", value=False)
-
-    station_names = sorted(df.index.astype(str).tolist())
-    station_filter = st.selectbox("Filtriraj po postaji", ["Vse postaje"] + station_names, index=0)
 
     active_thresholds = WHO_THRESHOLDS if use_who else THRESHOLDS
 
@@ -226,17 +226,20 @@ else:
 
     # ── Metrics ──────────────────────────────────────────────────
     stations_count = len(df)
-    series = df[pollutant] if pollutant in df.columns else pd.Series(dtype=float)
-    avg_val = float(series.mean()) if series.notna().any() else None
-    peak_val, peak_name = None, "Ni podatka"
-    if series.notna().any():
-        idx = series.idxmax()
-        peak_name = str(idx)
-        peak_val = float(df.loc[idx, pollutant])
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Število postaj", stations_count)
-    c2.metric(f"Povprečni {pollutant}", f"{avg_val:.1f}" if avg_val is not None else "Ni podatka")
-    c3.metric(f"Najvišji {pollutant}", f"{peak_val:.1f}" if peak_val is not None else "Ni podatka", delta=peak_name)
+    if pollutant in ["", "Vse postaje"]:
+        st.metric("Število postaj", stations_count)
+    else:
+        series = df[pollutant] if pollutant in df.columns else pd.Series(dtype=float)
+        avg_val = float(series.mean()) if series.notna().any() else None
+        peak_val, peak_name = None, "Ni podatka"
+        if series.notna().any():
+            idx = series.idxmax()
+            peak_name = str(idx)
+            peak_val = float(df.loc[idx, pollutant])
+        c1, c2, c3 = st.columns(3)
+        c1.metric("Število postaj", stations_count)
+        c2.metric(f"Povprečni {pollutant}", f"{avg_val:.1f}" if avg_val is not None else "Ni podatka")
+        c3.metric(f"Najvišji {pollutant}", f"{peak_val:.1f}" if peak_val is not None else "Ni podatka", delta=peak_name)
 
     st.caption(f"Zadnja osvežitev: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
@@ -250,7 +253,7 @@ else:
 
     ranking_df = ranking_df.sort_values(by="Postaja", ascending=True, kind="stable")
 
-    if pollutant in ranking_df.columns:
+    if pollutant not in ["", "Vse postaje"] and pollutant in ranking_df.columns:
         ranking_df[pollutant] = pd.to_numeric(ranking_df[pollutant], errors="coerce")
         ranking_df = ranking_df.sort_values(
             by=[pollutant, "Postaja"],
@@ -259,30 +262,21 @@ else:
             kind="stable",
         )
 
-    compact_df = ranking_df[["Postaja", pollutant]].copy()
-    compact_df.insert(0, "Rang", range(1, len(compact_df) + 1))
-    compact_df[pollutant] = pd.to_numeric(compact_df[pollutant], errors="coerce")
-    compact_df["Stanje"] = compact_df[pollutant].apply(lambda x: state_label(x, pollutant))
-    compact_df = compact_df.reset_index(drop=True)
-
-    styled_table = (
-        compact_df
-        .style
-        .hide(axis="index")
-        .map(lambda _: "background-color: #00aa96; color: white; font-weight: 700; text-align: center;", subset=["Rang"])
-        .set_properties(subset=["Postaja"], **{"text-align": "left"})
-        .set_properties(subset=[pollutant], **{"text-align": "center", "font-weight": "600"})
-        .set_properties(subset=["Stanje"], **{"text-align": "center", "font-weight": "600"})
-        .map(lambda _: "background-color: #0e7490; color: white; font-weight: 700;", subset=["Postaja"])
-        .format({pollutant: lambda x: f"{x:.1f}" if pd.notna(x) else "Ni podatka"}, na_rep="Ni podatka")
-        .map(lambda v: cell_color(v, pollutant), subset=[pollutant])
-        .map(
-            lambda s: "background-color: #d9f5e6; color: #0f5132;" if s == "Dobro"
-            else "background-color: #fff4d6; color: #7a5d00;" if s == "Zmerno"
-            else "background-color: #ffe1df; color: #8a1f1f;" if s == "Slabo"
-            else "background-color: #eef1f4; color: #5b6770;",
-            subset=["Stanje"],
-        )
-    )
-    st.subheader(f"Postaje — {pollutant}")
-    st.table(styled_table)
+    if pollutant in ["", "Vse postaje"]:
+        st.subheader("Pregled vseh postaj")
+        overview_df = ranking_df[["Postaja"] + poll_display_cols].copy()
+        overview_df.insert(0, "Rang", range(1, len(overview_df) + 1))
+        overview_df = overview_df.reset_index(drop=True)
+        for col in poll_display_cols:
+            overview_df[col] = pd.to_numeric(overview_df[col], errors="coerce")
+            overview_df[col] = overview_df[col].apply(lambda x: f"{x:.1f}" if pd.notna(x) else "Ni podatka")
+        st.dataframe(overview_df, use_container_width=True, height=520, hide_index=True)
+    else:
+        compact_df = ranking_df[["Postaja", pollutant]].copy()
+        compact_df.insert(0, "Rang", range(1, len(compact_df) + 1))
+        compact_df[pollutant] = pd.to_numeric(compact_df[pollutant], errors="coerce")
+        compact_df["Stanje"] = compact_df[pollutant].apply(lambda x: state_label(x, pollutant))
+        compact_df[pollutant] = compact_df[pollutant].apply(lambda x: f"{x:.1f}" if pd.notna(x) else "Ni podatka")
+        compact_df = compact_df.reset_index(drop=True)
+        st.subheader(f"Postaje — {pollutant}")
+        st.dataframe(compact_df, use_container_width=True, height=520, hide_index=True)

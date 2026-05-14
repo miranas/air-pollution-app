@@ -96,4 +96,4 @@ def process_to_dataframe(json_data: Dict[str, Any]) -> pd.DataFrame:
         if content.get('measurements_list')
     ])
 """
-        
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash

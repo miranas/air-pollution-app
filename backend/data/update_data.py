@@ -9,6 +9,7 @@ from flask import current_app
 import logging
 logging.basicConfig(level=logging.INFO)
 from backend.utils.redis import insert_merged_data_into_cache
+from backend.utils.history_cache import refresh_history_cache
 
 
 
@@ -94,5 +95,13 @@ def update_data():
         except Exception as e:
             logging.exception(f"Failed to insert data: {e}")
             # continue to attempt caching the merged data even if DB insert failed
+
+        try:
+            if refresh_history_cache():
+                logging.info("Refreshed history cache for all periods")
+            else:
+                logging.warning("History cache refresh completed with warnings")
+        except Exception as e:
+            logging.exception(f"Failed to refresh history cache: {e}")
 
         

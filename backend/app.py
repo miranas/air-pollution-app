@@ -44,11 +44,12 @@ def create_app() -> Flask:
 
         # Attach the redis client to the app so it's accessible in other modules via current_app.extensions['redis_client']
         app.extensions['redis_client'] = redis_client
+        logging.info("Cache: Redis (%s)", redis_url)
 
     except Exception:
 
         # fallback to SimpleCache if Redis is not available, and log a warning
-        logging.warning("Redis not available, using simple cache")
+        logging.warning("Cache: Redis ni dostopen, uporabljam SimpleCache")
         app.config["CACHE_TYPE"] = "SimpleCache"            
 
 

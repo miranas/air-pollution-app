@@ -1,19 +1,49 @@
-from flask import  Blueprint, Response, jsonify
-from flask import current_app
+from flask import Blueprint, Response, jsonify
+from flask import current_app, request
 import json
+import time
+from collections import defaultdict, deque
+from threading import Lock
 from backend.data.update_data import update_data
 from backend.database.session import SessionLocal
 from backend.database.db_models import DbModelStation, DbModelMeasurement, DbModelPollutant
 from sqlalchemy import func
 from backend.utils.redis import insert_merged_data_into_cache
-
+from backend.utils.history_cache import get_history_payload
 
 
 api_latest_bp = Blueprint('api_latest', __name__)
 
+_HISTORY_RATE_LIMIT = 120
+_HISTORY_RATE_WINDOW_SECONDS = 60
+_history_rate_lock = Lock()
+_history_requests_by_ip: dict[str, deque[float]] = defaultdict(deque)
+
+
+def _allow_history_request(client_ip: str) -> tuple[bool, int]:
+    now = time.monotonic()
+    with _history_rate_lock:
+        queue = _history_requests_by_ip[client_ip]
+        while queue and (now - queue[0]) > _HISTORY_RATE_WINDOW_SECONDS:
+            queue.popleft()
+
+        if len(queue) >= _HISTORY_RATE_LIMIT:
+            retry_after = max(1, int(_HISTORY_RATE_WINDOW_SECONDS - (now - queue[0])))
+            return False, retry_after
+
+        queue.append(now)
+        return True, 0
+
+
+def _history_cache_control(period: str) -> str:
+    if period == 'day':
+        return 'public, max-age=30, stale-while-revalidate=60'
+    return 'public, max-age=120, stale-while-revalidate=300'
+
 
 def _build_latest_from_db() -> dict:
     db = SessionLocal()
+    # check if there are any measurements at all, if not return empty dict to avoid unnecessary joins
     try:
         latest_ts = db.query(func.max(DbModelMeasurement.measured_at)).scalar()
         if latest_ts is None:
@@ -60,6 +90,7 @@ def _build_latest_from_db() -> dict:
 def get_latest_data():  
     redis_client = current_app.extensions.get('redis_client')
     latest_data = None
+    cache_only = request.args.get('cache_only', '0') in ('1', 'true', 'True', 'yes')
 
     def _read_latest_from_cache() -> object:
         cached = None
@@ -81,8 +112,8 @@ def get_latest_data():
 
     latest_data = _read_latest_from_cache()
 
-    # On cold start or after cache eviction, repopulate once and retry.
-    if latest_data is None:
+    # On cold start or after cache eviction, repopulate once, then re-check cache.
+    if latest_data is None and not cache_only:
         try:
             update_data()
         except Exception as e:
@@ -90,7 +121,7 @@ def get_latest_data():
         latest_data = _read_latest_from_cache()
 
     # Final fallback: build API payload from DB even if cache missed.
-    if latest_data is None:
+    if latest_data is None and not cache_only:
         try:
             db_payload = _build_latest_from_db()
             if db_payload:
@@ -104,4 +135,34 @@ def get_latest_data():
             latest_data = latest_data.decode('utf-8')        
         return Response(latest_data, mimetype='application/json')        
     return jsonify({"error": "No data available yet"}), 503
+
+
+@api_latest_bp.route('/api/history')
+def get_history_data():
+    period = request.args.get('period', 'day').lower()
+    station_id = request.args.get('station_id')
+    client_ip = request.headers.get('X-Forwarded-For', request.remote_addr or 'unknown').split(',')[0].strip()
+
+    if period not in {'day', 'week', 'month', 'year'}:
+        return jsonify({'error': 'Invalid period. Use day|week|month|year'}), 400
+
+    allowed, retry_after = _allow_history_request(client_ip)
+    if not allowed:
+        response = jsonify({'error': 'Too many requests. Please retry shortly.'})
+        response.status_code = 429
+        response.headers['Retry-After'] = str(retry_after)
+        return response
+
+    try:
+        payload = get_history_payload(period, station_id)
+        if payload is None:
+            return jsonify({'error': 'Failed to load history'}), 500
+
+        response = jsonify(payload)
+        response.headers['Cache-Control'] = _history_cache_control(period)
+        response.headers['Vary'] = 'Accept-Encoding'
+        return response
+    except Exception as e:
+        current_app.logger.exception(f"Failed to build history payload: {e}")
+        return jsonify({'error': 'Failed to load history'}), 500
 
