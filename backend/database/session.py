@@ -22,6 +22,9 @@ if db_password is None:
 safe_password = urllib.parse.quote(db_password)
 
 #
+# Build the connection string for PostgreSQL.
+# The password is URL-encoded to handle special characters.
+# sslmode=require ensures a secure connection to the database.
 DATABASE_URL = f"postgresql://{db_user}:{safe_password}@{db_host}:{db_port}/{db_name}?sslmode=require"
 
 
