@@ -3,6 +3,7 @@ import urllib.parse
 from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+import logging
 
 # Load environment variables from .env file and override inherited shell values.
 # This prevents stale exported variables (e.g. old DB_PORT) from taking precedence.
@@ -21,19 +22,18 @@ if db_password is None:
 # URL-encode the password
 safe_password = urllib.parse.quote(db_password)
 
-#
+
 # Build the connection string for PostgreSQL.
 # The password is URL-encoded to handle special characters.
-# sslmode=require ensures a secure connection to the database.
-DATABASE_URL = f"postgresql://{db_user}:{safe_password}@{db_host}:{db_port}/{db_name}?sslmode=require"
+DATABASE_URL = f"postgresql://{db_user}:{safe_password}@{db_host}:{db_port}/{db_name}"
 
 
 # Create the SQLAlchemy engine
 engine = create_engine(
     DATABASE_URL,
     pool_pre_ping=True, # Checks if connection is alive before using it
-    pool_size=5, # matching my Nano Free tier limit
-    max_overflow=0, # no overflow connections
+    pool_size=10, # conservative for container
+    max_overflow=5, # Allow spikes
     connect_args={"connect_timeout": 5},
     #timeout=30, # 30 seconds timeout
     echo=True, # log all SQL queries
