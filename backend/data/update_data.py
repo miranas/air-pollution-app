@@ -5,6 +5,7 @@ from backend.parsers.stations_and_measurments_merger import merge_stations_and_m
 from backend.utils.serialization import to_serializable
 from typing import Any, List, Tuple, cast
 import json
+import os
 from flask import current_app
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -15,6 +16,8 @@ from backend.utils.history_cache import refresh_history_cache
 
 
 def update_data():
+    skip_db_sync = os.environ.get("SKIP_DB_SYNC", "0").lower() in ("1", "true", "yes")
+
     # Fetch XML from ARSO
     # Call the ARSO client and normalize possible return shapes.
     # fetch_arso_xml() may return (success, xml_content, error) or just xml_content.
@@ -60,6 +63,10 @@ def update_data():
     # save into Redis or SimpleCache
     insert_merged_data_into_cache(merged_data)
 
+    if skip_db_sync:
+        logging.info("SKIP_DB_SYNC enabled: skipping DB insert and history cache refresh")
+        return True
+
     if not merged_data:
         logging.info("No merged data available")
         return False
@@ -103,5 +110,7 @@ def update_data():
                 logging.warning("History cache refresh completed with warnings")
         except Exception as e:
             logging.exception(f"Failed to refresh history cache: {e}")
+
+        return True
 
         

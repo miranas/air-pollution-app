@@ -9,6 +9,7 @@ from backend.database.session import SessionLocal
 from backend.database.db_models import DbModelStation, DbModelMeasurement, DbModelPollutant
 from sqlalchemy import func
 from backend.utils.redis import insert_merged_data_into_cache
+from backend.utils.redis import get_latest_merged_data_fallback
 from backend.utils.history_cache import get_history_payload
 
 
@@ -108,6 +109,18 @@ def get_latest_data():
                     cached = cache_ext.cache.get('latest_merged_data')
                 except Exception as e:
                     current_app.logger.exception(f"Failed to get latest_merged_data from cache: {e}")
+
+        # Flask-Caching instance fallback (used when extension registry shape differs)
+        if cached is None:
+            try:
+                from backend.app import cache as app_cache
+                if hasattr(app_cache, 'get'):
+                    cached = app_cache.get('latest_merged_data')
+            except Exception as e:
+                current_app.logger.exception(f"Failed to get latest_merged_data via app cache: {e}")
+
+        if cached is None:
+            cached = get_latest_merged_data_fallback()
         return cached
 
     latest_data = _read_latest_from_cache()

@@ -9,6 +9,9 @@ from flask import current_app
 logging.basicConfig(level=logging.INFO)
 
 
+_LATEST_MERGED_DATA_JSON: Optional[str] = None
+
+
 def get_redis_client(app: Optional[Any]) -> Optional[Any]:
     """Return Redis client"""
     if app and getattr(app, 'extensions', None):  
@@ -28,6 +31,14 @@ def get_cache_client(app: Optional[Any]) -> Optional[Any]:
     # if not found in extensions, check if app has attribute 'cache' (SimpleCache)
     if app and hasattr(app, 'cache'):
         return getattr(app, 'cache')
+
+    # Fallback to app-level Flask-Caching instance
+    try:
+        from backend.app import cache as app_cache
+        if hasattr(app_cache, 'set'):
+            return app_cache
+    except Exception:
+        pass
     return None
 
 
@@ -41,10 +52,16 @@ def serialize_merged_data(merged_data: Dict[str, Any]) -> Optional[str]:
         return None
 
 
+def get_latest_merged_data_fallback() -> Optional[str]:
+    return _LATEST_MERGED_DATA_JSON
+
+
 
 def insert_merged_data_into_cache(merged_data: Dict[str, Any]) -> bool:
     """Save  merged_data into Redis or SimpleCache, if Redis is not available."""
     try:
+        global _LATEST_MERGED_DATA_JSON
+
         # Access current_app directly; accessing it outside an app context raises RuntimeError
         try:
             app = current_app
@@ -54,6 +71,7 @@ def insert_merged_data_into_cache(merged_data: Dict[str, Any]) -> bool:
 
         redis_client = get_redis_client(app)
         data = serialize_merged_data(merged_data)
+        _LATEST_MERGED_DATA_JSON = data
         if redis_client:
             redis_client.set('latest_merged_data', data)
             logging.info("Written merged_data to Redis.")

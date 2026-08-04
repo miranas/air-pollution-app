@@ -56,10 +56,9 @@ export default function Home() {
 
   // 1. Pridobivanje zadnjih podatkov
   useEffect(() => {
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || `${window.location.protocol}//${window.location.hostname}:5000`;
     async function fetchData() {
       try {
-        const res = await fetch(`${apiBaseUrl}/api/latest?_t=${Date.now()}`, { cache: 'no-store' });
+        const res = await fetch(`/api/latest?_t=${Date.now()}`, { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
           setMeritve(Object.values(data));
@@ -90,11 +89,10 @@ export default function Home() {
   // 2. Pridobivanje zgodovine
   useEffect(() => {
     if (!historyStationId) return;
-    const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || `${window.location.protocol}//${window.location.hostname}:5000`;
     async function fetchHistory() {
       setHistoryLoading(true);
       try {
-        const res = await fetch(`${apiBaseUrl}/api/history?period=${historyPeriod}&station_id=${encodeURIComponent(historyStationId)}`, { cache: 'no-store' });
+        const res = await fetch(`/api/history?period=${historyPeriod}&station_id=${encodeURIComponent(historyStationId)}`, { cache: 'no-store' });
         if (res.ok) setHistoryData(await res.json());
       } catch (error) { console.error('History fetch failed:', error); }
       finally { setHistoryLoading(false); }

@@ -42,14 +42,14 @@ type ChartSegment = {
   points: ChartPoint[];
 };
 
-type SeriesLevel = 'good' | 'ok' | 'warn' | 'bad' | 'verybad' | 'unknown';
+type SeriesLevel = 'good' | 'ok' | 'warn' | 'bad' | 'very bad' | 'unknown';
 
 function getAqiLevel(value: number): SeriesLevel {
   if (value <= AQI_THRESHOLDS[0]) return 'good';
   if (value <= AQI_THRESHOLDS[1]) return 'ok';
   if (value <= AQI_THRESHOLDS[2]) return 'warn';
   if (value <= AQI_THRESHOLDS[3]) return 'bad';
-  return 'verybad';
+  return 'very bad';
 }
 
 function getSeriesLevel(
@@ -77,7 +77,7 @@ function getSeriesLabel(
     return 'NI PRAGA';
   }
 
-  if (level === 'verybad') {
+  if (level === 'very bad') {
     return 'ZELO SLABO';
   }
 
