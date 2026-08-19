@@ -75,7 +75,7 @@ jobs:
           username: root
           key: ${{ secrets.HETZNER_SSH_KEY }}
           source: "docker-compose.yml,prometheus.yml,nginx.conf"
-          target: "/root/projects/arso"
+          target: "/opt/air_pollution_app"
           strip_components: 0
           rm: false
 
@@ -87,7 +87,7 @@ jobs:
           key: ${{ secrets.HETZNER_SSH_KEY }}
           script: |
             set -euo pipefail
-            cd /root/projects/arso
+            cd /opt/air_pollution_app
             export APP_COMMIT_SHA=${{ github.sha }}
 
             echo ${{ secrets.HETZNER_GHCR_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
