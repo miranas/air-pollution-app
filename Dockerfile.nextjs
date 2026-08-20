@@ -1,0 +1,9 @@
+# 1. Build stage
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY frontend-next/package*.json ./
+RUN npm ci
+COPY frontend-next/ ./
+RUN npm run build
+
+
