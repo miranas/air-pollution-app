@@ -11,7 +11,6 @@ services:
     depends_on:
       - backend
 
-
   backend:
     image: ghcr.io/miranas/air_pollution_app:latest
     container_name: air_pollution_app
